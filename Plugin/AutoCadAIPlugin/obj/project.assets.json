@@ -191,11 +191,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\H604879\\Desktop\\Projects\\NITestStandCaseStudy\\AutoCadAIPlugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+      "projectUniqueName": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
       "projectName": "AutoCadAIPlugin",
-      "projectPath": "C:\\Users\\H604879\\Desktop\\Projects\\NITestStandCaseStudy\\AutoCadAIPlugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+      "projectPath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
       "packagesPath": "C:\\Users\\H604879\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\H604879\\Desktop\\Projects\\NITestStandCaseStudy\\AutoCadAIPlugin\\AutoCadAIPlugin\\obj\\",
+      "outputPath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\H604879\\AppData\\Roaming\\NuGet\\NuGet.Config",
