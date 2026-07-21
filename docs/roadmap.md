@@ -1,65 +1,37 @@
-# Roadmap
+# AutoCAD-AI Roadmap
 
-## Phase 1 — Project Foundation
+## Project Vision
 
-* Repository structure
-* Development environment
-* File upload workflow
-* Sample drawing library
+Build a system that converts images and PDFs into accurate, editable CAD geometry.
 
-## Phase 2 — Basic 2D Extraction
+The project will begin with a small image-to-DXF prototype and gradually expand into a larger AI-assisted CAD platform.
 
-* Import PDF and image files
-* Detect page size and scale
-* Extract vector PDF linework
-* Detect raster lines
-* Export basic DXF files
+---
 
-## Phase 3 — Geometry Cleanup
+# Phase 1 — Project Foundation
 
-* Merge broken lines
-* Remove duplicate geometry
-* Snap nearby endpoints
-* Detect parallel and perpendicular lines
-* Detect arcs and circles
-* Correct distorted photo perspective
+## Goal
 
-## Phase 4 — Drawing Recognition
+Create a clean and repeatable development environment.
 
-* Recognize walls
-* Recognize doors and windows
-* Recognize rooms
-* Read text and dimensions
-* Detect common architectural symbols
+## Tasks
 
-## Phase 5 — Review Interface
+- [x] Create GitHub repository
+- [x] Install Python
+- [x] Create Python virtual environment
+- [x] Install OpenCV
+- [x] Install NumPy
+- [x] Install Pillow
+- [x] Install ezdxf
+- [x] Create `requirements.txt`
+- [x] Create backend folder structure
+- [ ] Create `.gitignore`
+- [ ] Create and run `backend/src/main.py`
+- [ ] Make first clean GitHub commit
 
-* Overlay detected geometry on the source file
-* Select and edit detected objects
-* Accept or reject generated geometry
-* Show confidence levels
-* Calibrate drawing scale manually
+## Completion Criteria
 
-## Phase 6 — AutoCAD Integration
+Running:
 
-* Build AutoCAD .NET plugin
-* Send geometry to the active drawing
-* Read selected AutoCAD objects
-* Update generated geometry
-* Undo an AI-generated operation
-
-## Phase 7 — Advanced 2D Workflows
-
-* Layer assignment
-* Block recognition
-* Dimension reconstruction
-* Title block recognition
-* Multi-sheet project handling
-
-## Phase 8 — 3D Reconstruction
-
-* Detect levels and elevations
-* Extrude walls
-* Create doors and windows
-* Generate basic 3D building geometry
-* Export to AutoCAD or Revit-compatible formats
+```powershell
+python backend\src\main.py
