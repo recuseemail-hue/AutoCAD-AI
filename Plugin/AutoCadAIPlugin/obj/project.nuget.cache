@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "ndqxG52cN3s=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\H604879\\Desktop\\Projects\\NITestStandCaseStudy\\AutoCadAIPlugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net\\26.0.0\\autocad.net.26.0.0.nupkg.sha512",
+    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net.core\\26.0.0\\autocad.net.core.26.0.0.nupkg.sha512",
+    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net.model\\26.0.0\\autocad.net.model.26.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
