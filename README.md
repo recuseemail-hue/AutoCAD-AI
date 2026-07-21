@@ -31,7 +31,7 @@ Build a controlled AI design assistant that can:
 
 The goal is not merely to make an AI that can draw lines. The goal is to create a reliable platform that connects conversational AI to professional design software while keeping geometry, calculations, safety rules, and application execution deterministic and reviewable.
 
-## Initial System
+## Initial System Architecture
 
 ```text
 User
@@ -40,13 +40,13 @@ Odysseus chat interface
   ↓
 AI reasoning and command planning
   ↓
-Structured, versioned command
+Structured, versioned JSON command
   ↓
-Local bridge or API
+Local HTTP Bridge Pipeline (Port 8080)
   ↓
-AutoCAD plugin
+AutoCAD C# Plugin (.NET 10.0 Client Listener)
   ↓
-AutoCAD drawing database
+AutoCAD drawing database (Safe Transaction Execution)
   ↓
 Execution result returned to Odysseus
 ```
@@ -108,8 +108,7 @@ The AI will determine intent, ask questions, and prepare a plan. Deterministic c
 
 The application plugin should never receive an unrestricted natural-language instruction as its final command. The AI should produce a defined structure that can be validated before execution.
 
-Example:
-
+Example Request Package (`POST http://localhost:8080/command/`):
 ```json
 {
   "schema_version": "0.1",
@@ -117,11 +116,13 @@ Example:
   "application": "autocad",
   "operation": "create_line",
   "parameters": {
-    "start": [0.0, 0.0, 0.0],
-    "end": [240.0, 0.0, 0.0],
-    "layer": "AI-WALL"
+    "start": { "x": 0.0, "y": 0.0, "z": 0.0 },
+    "end": { "x": 20.0, "y": 0.0, "z": 0.0 },
+    "layer": "AI-WALL",
+    "create_layer_if_missing": true
   },
-  "units": "inches",
+  "units": "feet",
+  "coordinate_system": "world",
   "requires_approval": false
 }
 ```
@@ -215,99 +216,54 @@ The system should record:
 - Coordinate 2D and 3D representations
 - Export to supported modeling and visualization tools
 
-## Application Adapter Strategy
+## Application Adapter & IPC Strategy
 
-Application-specific logic should remain separated behind adapters.
+Application-specific logic is strictly decoupled using isolated target adapters. Communication between the Python AI layer and the active design software session runs locally through a dedicated Inter-Process Communication (IPC) boundary.
 
 ```text
 Shared AI and command layer
-├── AutoCAD adapter
-├── Revit adapter
-├── AutoSPRINK adapter
+        │
+  (Local HTTP/JSON)
+        ▼
+├── AutoCAD Adapter (C# Plugin Listener - Port 8080)
+├── Revit Adapter
+├── AutoSPRINK Adapter
 └── Future application adapters
 ```
 
-The shared system will describe intent and common command information. Each adapter will translate validated commands into the APIs and native objects of its target application.
+### C# AutoCAD Plugin Specifications
+*   **Target Engine Environment**: `.NET 10.0-windows` (Modern SDK-Style Architecture)
+*   **Host System Compatibility**: AutoCAD 2027 (`AutoCAD.NET` NuGet APIs >= v26.0.0)
+*   **Embedded Communication Channel**: Native asynchronous `System.Net.HttpListener` initialized directly on plugin assembly load via `IExtensionApplication`.
+*   **Default Endpoint Route**: `http://localhost:8080/command/`
 
 ## Current Project Phase
 
-The project is currently in **planning and system-definition mode**.
+The project is transitioning from **planning** into **initial component assembly**.
 
 Current priorities:
+- Implement thread marshaling for incoming non-UI asynchronous HTTP requests inside AutoCAD.
+- Build the core C# Database transaction engine loop for geometry generation.
+- Configure mock Python client routing matrices to transmit valid payloads to `localhost:8080`.
+- Standardize the `ExecutionResponse` JSON contract structure.
 
-- Define the role of Odysseus
-- Define the first AutoCAD workflow
-- Decide how Odysseus will call local tools
-- Draft the structured command schema
-- Define safety and approval rules
-- Decide how the local bridge and AutoCAD plugin will communicate
-- Identify the supported AutoCAD and .NET versions
-- Plan logging, testing, undo, and failure handling
-- Keep the architecture expandable to Revit, AutoSPRINK, and 3D modeling
-
-Plugin development and advanced drawing generation should begin only after these foundational decisions are documented clearly enough to avoid unnecessary rebuilding.
-
-## Proposed Repository Structure
+## Repository Layout Structure
 
 ```text
 AutoCAD-AI/
-├── backend/
+├── backend/                  # Python reasoning & API management
 │   ├── src/
 │   └── tests/
-├── plugins/
-│   └── autocad/
-├── schemas/
-├── docs/
-│   ├── architecture.md
-│   └── roadmap.md
-├── examples/
-├── README.md
-├── requirements.txt
-└── .gitignore
+└── plugins/                  # Target environment automation tools
+    └── AutoCadAIPlugin/       # C# Plugin Application Solution
+        ├── Commands/         # Manual AutoCAD Text CLI Wrappers
+        │   └── Commands.cs
+        ├── Models/           # Strongly-typed Serialization Contracts (POCOs)
+        │   ├── RequestModels.cs
+        │   └── ResponseModels.cs
+        ├── Services/         # Deterministic Transaction Layer & IPC Bridge
+        │   ├── DrawingService.cs
+        │   └── PythonBridge.cs
+        ├── Initialization.cs # Application Plugin Entry Lifecycle Control
+        └── AutoCadAIPlugin.csproj
 ```
-
-The repository will evolve toward this structure as implementation begins.
-
-## Documentation
-
-Detailed planning is maintained in:
-
-- [`docs/architecture.md`](docs/architecture.md) — system vision, components, communication, safety, and design principles
-- [`docs/roadmap.md`](docs/roadmap.md) — phased development plan, milestones, open questions, and completion criteria
-
-## Near-Term Planning Decisions
-
-Before building the plugin, the project should answer:
-
-- What exact responsibilities will Odysseus have?
-- Which AI model will be used first?
-- Will Odysseus communicate through MCP, HTTP, WebSocket, or another method?
-- Which AutoCAD version will be supported first?
-- Which .NET runtime and AutoCAD API references are required?
-- Will the plugin connect outward to the bridge, or will the bridge call the plugin?
-- What commands belong in schema version 0.1?
-- Which commands require approval?
-- How will command groups be undone?
-- How will logs and project context be stored?
-- What project information may leave the local computer?
-- What is the practical path for future AutoSPRINK integration?
-
-## Long-Term Direction
-
-The long-term platform may support a user asking one AI assistant to coordinate work across multiple applications.
-
-Example:
-
-```text
-Create the architectural layout in AutoCAD, build native walls and
-rooms in Revit, place a preliminary sprinkler layout in AutoSPRINK,
-and produce a simple 3D coordination model for review.
-```
-
-Reaching that goal will require reliable application adapters, structured data exchange, deterministic geometry, validation, user approvals, and clear limits on what the AI is allowed to decide.
-
-## Status
-
-**Current status:** Architecture, roadmap, and product direction are being defined.
-
-**Next implementation milestone:** Prove a safe end-to-end Odysseus-to-AutoCAD command that reads the active document, creates one line, reports the result, and can be undone.
