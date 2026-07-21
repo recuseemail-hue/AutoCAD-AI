@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.1",
+  "command_id": "cmd-001",
+  "status": "success",
+  "message": "Line created successfully.",
+  "affected_objects": [
+    {
+      "object_type": "LINE",
+      "object_id": "2AF",
+      "action": "created"
+    }
+  ],
+  "data": {
+    "layer": "AI-WALL",
+    "start_in_drawing_units": [0, 0, 0],
+    "end_in_drawing_units": [240, 0, 0]
+  },
+  "undo_token": "ai-action-001",
+  "warnings": []
+}

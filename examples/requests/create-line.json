@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1",
+  "command_id": "cmd-001",
+  "application": "autocad",
+  "operation": "create_line",
+  "parameters": {
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "end": {
+      "x": 20,
+      "y": 0,
+      "z": 0
+    },
+    "layer": "AI-WALL",
+    "create_layer_if_missing": true
+  },
+  "units": "feet",
+  "coordinate_system": "world",
+  "requires_approval": false
+}

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autocad-ai.local/schemas/v0.1/command.schema.json",
+  "title": "AutoCAD-AI Command",
+  "description": "Schema for AutoCAD-AI command messages.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "command_id",
+    "application",
+    "operation",
+    "parameters",
+    "units",
+    "coordinate_system",
+    "requires_approval"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "application": {
+      "const": "autocad"
+    },
+    "operation": {
+      "const": "create_line"
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "layer",
+        "create_layer_if_missing"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/point3d"
+        },
+        "end": {
+          "$ref": "#/$defs/point3d"
+        },
+        "layer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "create_layer_if_missing": {
+          "type": "boolean"
+        }
+      }
+    },
+    "units": {
+      "enum": [
+        "inches",
+        "feet",
+        "millimeters",
+        "meters",
+        "drawing_units"
+      ]
+    },
+    "coordinate_system": {
+      "enum": [
+        "world"
+      ]
+    },
+    "requires_approval": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "point3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}
