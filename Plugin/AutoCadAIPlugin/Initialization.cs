@@ -1,23 +1,37 @@
-﻿using Autodesk.AutoCAD.Runtime;
 using AutoCadAIPlugin.Services;
+using Autodesk.AutoCAD.Runtime;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: ExtensionApplication(typeof(AutoCadAIPlugin.Initialization))]
 
 namespace AutoCadAIPlugin;
 
-public class Initialization : IExtensionApplication
+public sealed class Initialization : IExtensionApplication
 {
-    private readonly PythonBridge _bridge = new();
+    public static PythonBridge Bridge { get; } = new();
 
     public void Initialize()
     {
-        // Automatically open port 8080 on plugin startup
-        _bridge.Start(8080);
+        try
+        {
+            Bridge.Start(8080);
+            WriteMessage($"\nAutoCAD AI plugin loaded. Endpoint: {Bridge.Endpoint}");
+        }
+        catch (System.Exception exception)
+        {
+            WriteMessage(
+                $"\nAutoCAD AI plugin loaded, but its HTTP endpoint could not start: {exception.Message}" +
+                "\nRun AI_SERVER_START after resolving the port/URL reservation issue.");
+        }
     }
 
     public void Terminate()
     {
-        // Ensure the port shuts down safely when AutoCAD exits
-        _bridge.Stop();
+        Bridge.Stop();
+    }
+
+    private static void WriteMessage(string message)
+    {
+        Application.DocumentManager.MdiActiveDocument?.Editor.WriteMessage(message);
     }
 }

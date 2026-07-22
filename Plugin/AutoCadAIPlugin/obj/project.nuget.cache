@@ -1,12 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "7koxMrZ1zQU=",
+  "dgSpecHash": "KiTUDPzYGE4=",
   "success": true,
-  "projectFilePath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+  "projectFilePath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net\\26.0.0\\autocad.net.26.0.0.nupkg.sha512",
-    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net.core\\26.0.0\\autocad.net.core.26.0.0.nupkg.sha512",
-    "C:\\Users\\H604879\\.nuget\\packages\\autocad.net.model\\26.0.0\\autocad.net.model.26.0.0.nupkg.sha512"
+    "C:\\Users\\Luke\\.nuget\\packages\\autocad.net\\26.0.0\\autocad.net.26.0.0.nupkg.sha512",
+    "C:\\Users\\Luke\\.nuget\\packages\\autocad.net.core\\26.0.0\\autocad.net.core.26.0.0.nupkg.sha512",
+    "C:\\Users\\Luke\\.nuget\\packages\\autocad.net.model\\26.0.0\\autocad.net.model.26.0.0.nupkg.sha512"
   ],
   "logs": []
 }

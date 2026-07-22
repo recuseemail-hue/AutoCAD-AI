@@ -1,20 +1,7 @@
 {
   "Version": 1,
-  "WorkspaceRootPath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\",
-  "Documents": [
-    {
-      "AbsoluteMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|c:\\users\\h604879\\desktop\\projects\\autocad-ai\\plugin\\autocadaiplugin\\initialization.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|solutionrelative:autocadaiplugin\\initialization.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|c:\\users\\h604879\\desktop\\projects\\autocad-ai\\plugin\\autocadaiplugin\\services\\pythonbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|solutionrelative:autocadaiplugin\\services\\pythonbridge.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|c:\\users\\h604879\\desktop\\projects\\autocad-ai\\plugin\\autocadaiplugin\\commands\\commands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{4C93FDD0-BD5A-291B-C4B3-99DAEBB8631D}|AutoCadAIPlugin\\AutoCadAIPlugin.csproj|solutionrelative:autocadaiplugin\\commands\\commands.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    }
-  ],
+  "WorkspaceRootPath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\",
+  "Documents": [],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
@@ -22,46 +9,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": -1,
           "Children": [
             {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "Initialization.cs",
-              "DocumentMoniker": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Initialization.cs",
-              "RelativeDocumentMoniker": "AutoCadAIPlugin\\Initialization.cs",
-              "ToolTip": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Initialization.cs",
-              "RelativeToolTip": "AutoCadAIPlugin\\Initialization.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-21T15:54:22.419Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "PythonBridge.cs",
-              "DocumentMoniker": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Services\\PythonBridge.cs",
-              "RelativeDocumentMoniker": "AutoCadAIPlugin\\Services\\PythonBridge.cs",
-              "ToolTip": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Services\\PythonBridge.cs",
-              "RelativeToolTip": "AutoCadAIPlugin\\Services\\PythonBridge.cs",
-              "ViewState": "AgIAADIAAAAAAAAAAAAgwHUAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-21T15:53:01.214Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Commands.cs",
-              "DocumentMoniker": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Commands\\Commands.cs",
-              "RelativeDocumentMoniker": "AutoCadAIPlugin\\Commands\\Commands.cs",
-              "ToolTip": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\Commands\\Commands.cs",
-              "RelativeToolTip": "AutoCadAIPlugin\\Commands\\Commands.cs",
-              "ViewState": "AgIAABMAAAAAAAAAAAAQwAkAAAAjAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-07-21T15:46:12.371Z",
-              "EditorCaption": ""
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{cce594b6-0c39-4442-ba28-10c64ac7e89f}"
             }
           ]
         }

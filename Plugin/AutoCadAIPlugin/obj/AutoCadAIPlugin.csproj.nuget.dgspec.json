@@ -1,20 +1,24 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {}
+    "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {}
   },
   "projects": {
-    "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {
+    "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+        "projectUniqueName": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
         "projectName": "AutoCadAIPlugin",
-        "projectPath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
-        "packagesPath": "C:\\Users\\H604879\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\H604879\\Desktop\\Projects\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\obj\\",
+        "projectPath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
+        "packagesPath": "C:\\Users\\Luke\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\H604879\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Luke\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -22,6 +26,7 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -49,14 +54,17 @@
           "targetAlias": "net10.0",
           "dependencies": {
             "AutoCad.NET": {
+              "include": "Compile, Build, Native, ContentFiles, Analyzers, BuildTransitive",
               "target": "Package",
               "version": "[26.0.0, )"
             },
             "AutoCad.NET.Core": {
+              "include": "Compile, Build, Native, ContentFiles, Analyzers, BuildTransitive",
               "target": "Package",
               "version": "[26.0.0, )"
             },
             "AutoCad.NET.Model": {
+              "include": "Compile, Build, Native, ContentFiles, Analyzers, BuildTransitive",
               "target": "Package",
               "version": "[26.0.0, )"
             }

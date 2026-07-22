@@ -1,50 +1,98 @@
-﻿using AutoCadAIPlugin.Models;
+using System.Text.Json;
+using AutoCadAIPlugin.Models;
 using AutoCadAIPlugin.Services;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
-using System.Reflection.Metadata;
-using System.Text.Json;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
+
+[assembly: CommandClass(typeof(AutoCadAIPlugin.Commands.CadCommands))]
 
 namespace AutoCadAIPlugin.Commands;
 
-public class CadCommands
+public sealed class CadCommands
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
+
     private readonly DrawingService _drawingService = new();
-    
+
     [CommandMethod("AI_DRAW_JSON")]
     public void AiDrawJson()
     {
-        Autodesk.AutoCAD.ApplicationServices.Document doc = Application.DocumentManager.MdiActiveDocument;
-        Editor ed = doc.Editor;
+        Document document = Application.DocumentManager.MdiActiveDocument;
+        Editor editor = document.Editor;
 
-        PromptStringOptions opt = new("\nPaste JSON command payload: ") { AllowSpaces = true };
-        PromptResult res = ed.GetString(opt);
-        if (res.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(res.StringResult)) return;
+        PromptStringOptions options = new("\nPaste a single-line JSON command payload: ")
+        {
+            AllowSpaces = true
+        };
+        PromptResult result = editor.GetString(options);
+        if (result.Status != PromptStatus.OK || string.IsNullOrWhiteSpace(result.StringResult))
+        {
+            return;
+        }
 
         try
         {
-            // Parse native JSON using modern .NET 10 System.Text.Json engine
-            CadPayload? payload = JsonSerializer.Deserialize<CadPayload>(res.StringResult);
+            CadPayload? payload = JsonSerializer.Deserialize<CadPayload>(
+                result.StringResult,
+                JsonOptions);
+            if (payload == null)
+            {
+                throw new CadRequestException("The JSON request body is required.");
+            }
 
-            if (payload != null && payload.Operation.Equals("create_line", StringComparison.OrdinalIgnoreCase))
-            {
-                _drawingService.CreateLine(payload);
-                ed.WriteMessage($"\n[Success] Command {payload.CommandId} processed successfully.");
-            }
-            else
-            {
-                ed.WriteMessage("\n[Error] Invalid operation type.");
-            }
+            CadResponse response = _drawingService.CreateLine(payload);
+            editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
-        catch (JsonException jsonEx)
+        catch (JsonException exception)
         {
-            ed.WriteMessage($"\n[Error] Malformed JSON structure: {jsonEx.Message}");
+            CadResponse response = CadResponse.Error(
+                string.Empty,
+                $"Malformed JSON: {exception.Message}");
+            editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
-        catch (System.Exception ex)
+        catch (System.Exception exception)
         {
-            ed.WriteMessage($"\n[Fatal Error] Engine exception: {ex.Message}");
+            CadResponse response = CadResponse.Error(string.Empty, exception.Message);
+            editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
+    }
+
+    [CommandMethod("AI_SERVER_START")]
+    public void StartServer()
+    {
+        Editor editor = Application.DocumentManager.MdiActiveDocument.Editor;
+        try
+        {
+            Initialization.Bridge.Start(8080);
+            editor.WriteMessage($"\nAutoCAD AI endpoint listening at {Initialization.Bridge.Endpoint}");
+        }
+        catch (System.Exception exception)
+        {
+            editor.WriteMessage($"\nUnable to start AutoCAD AI endpoint: {exception.Message}");
+        }
+    }
+
+    [CommandMethod("AI_SERVER_STOP")]
+    public void StopServer()
+    {
+        Initialization.Bridge.Stop();
+        Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
+            "\nAutoCAD AI endpoint stopped.");
+    }
+
+    [CommandMethod("AI_SERVER_STATUS")]
+    public void ServerStatus()
+    {
+        string status = Initialization.Bridge.IsRunning
+            ? $"running at {Initialization.Bridge.Endpoint}"
+            : "stopped";
+        Application.DocumentManager.MdiActiveDocument.Editor.WriteMessage(
+            $"\nAutoCAD AI endpoint is {status}.");
     }
 }

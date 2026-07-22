@@ -1,54 +1,207 @@
-﻿using AutoCadAIPlugin.Models;
+using AutoCadAIPlugin.Models;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
-using Microsoft.VisualBasic;
-using System.Reflection.Metadata;
-using System.Transactions;
 using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace AutoCadAIPlugin.Services;
 
-public class DrawingService
+public sealed class DrawingService
 {
-    public void CreateLine(CadPayload payload)
+    public CadResponse CreateLine(CadPayload payload)
     {
-        if (payload?.Parameters == null) return;
+        Validate(payload);
 
         Document doc = Application.DocumentManager.MdiActiveDocument;
-        Database db = doc.Database;
-        LineParams p = payload.Parameters;
-
-        using (Transaction tr = db.TransactionManager.StartTransaction())
+        if (doc == null)
         {
-            // Layer Table Setup
-            LayerTable lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
-            if (!lt.Has(p.Layer) && p.CreateLayerIfMissing)
+            throw new CadRequestException("No active AutoCAD drawing is available.");
+        }
+
+        Database db = doc.Database;
+        LineParams parameters = payload.Parameters;
+        List<string> warnings = [];
+        double conversionFactor = GetConversionFactor(payload.Units, db.Insunits, warnings);
+
+        Point3d startPoint = ConvertPoint(parameters.Start, conversionFactor);
+        Point3d endPoint = ConvertPoint(parameters.End, conversionFactor);
+
+        if (startPoint.IsEqualTo(endPoint))
+        {
+            throw new CadRequestException("A line must have different start and end points.");
+        }
+
+        string objectHandle;
+        using (Transaction transaction = db.TransactionManager.StartTransaction())
+        {
+            LayerTable layerTable =
+                (LayerTable)transaction.GetObject(db.LayerTableId, OpenMode.ForRead);
+            ObjectId layerId;
+
+            if (layerTable.Has(parameters.Layer))
             {
-                lt.UpgradeOpen();
-                using LayerTableRecord ltr = new() { Name = p.Layer };
-                lt.Add(ltr);
-                tr.AddNewlyCreatedDBObject(ltr, true);
+                layerId = layerTable[parameters.Layer];
+            }
+            else if (parameters.CreateLayerIfMissing)
+            {
+                layerTable.UpgradeOpen();
+                using LayerTableRecord layer = new() { Name = parameters.Layer };
+                layerId = layerTable.Add(layer);
+                transaction.AddNewlyCreatedDBObject(layer, true);
+            }
+            else
+            {
+                throw new CadRequestException(
+                    $"Layer '{parameters.Layer}' does not exist and create_layer_if_missing is false.");
             }
 
-            // Model Space Access
-            BlockTable bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-            BlockTableRecord btr = (BlockTableRecord)tr.GetObject(bt[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
+            BlockTable blockTable =
+                (BlockTable)transaction.GetObject(db.BlockTableId, OpenMode.ForRead);
+            BlockTableRecord modelSpace = (BlockTableRecord)transaction.GetObject(
+                blockTable[BlockTableRecord.ModelSpace], OpenMode.ForWrite);
 
-            // Construct Vector Geometry
-            Point3d startPt = new(p.Start.X, p.Start.Y, p.Start.Z);
-            Point3d endPt = new(p.End.X, p.End.Y, p.End.Z);
+            using Line line = new(startPoint, endPoint) { LayerId = layerId };
+            modelSpace.AppendEntity(line);
+            transaction.AddNewlyCreatedDBObject(line, true);
+            objectHandle = line.ObjectId.Handle.ToString();
 
-            using Line line = new(startPt, endPt);
-            if (lt.Has(p.Layer))
+            transaction.Commit();
+        }
+
+        return new CadResponse
+        {
+            SchemaVersion = payload.SchemaVersion,
+            CommandId = payload.CommandId,
+            Status = "success",
+            Message = "Line created successfully.",
+            AffectedObjects =
+            [
+                new AffectedObject
+                {
+                    ObjectType = "LINE",
+                    ObjectId = objectHandle,
+                    Action = "created"
+                }
+            ],
+            Data = new LineResponseData
             {
-                line.Layer = p.Layer;
-            }
+                Layer = parameters.Layer,
+                StartInDrawingUnits = [startPoint.X, startPoint.Y, startPoint.Z],
+                EndInDrawingUnits = [endPoint.X, endPoint.Y, endPoint.Z]
+            },
+            UndoToken = CreateUndoToken(payload.CommandId),
+            Warnings = warnings
+        };
+    }
 
-            btr.AppendEntity(line);
-            tr.AddNewlyCreatedDBObject(line, true);
+    private static void Validate(CadPayload payload)
+    {
+        if (payload == null)
+        {
+            throw new CadRequestException("The JSON request body is required.");
+        }
 
-            tr.Commit();
+        if (!string.Equals(payload.SchemaVersion, "0.1", StringComparison.Ordinal))
+        {
+            throw new CadRequestException("Unsupported schema_version. Expected '0.1'.");
+        }
+
+        if (string.IsNullOrWhiteSpace(payload.CommandId))
+        {
+            throw new CadRequestException("command_id is required.");
+        }
+
+        if (!string.Equals(payload.Application, "autocad", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new CadRequestException("application must be 'autocad'.");
+        }
+
+        if (!string.Equals(payload.Operation, "create_line", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new CadRequestException($"Unsupported operation '{payload.Operation}'.");
+        }
+
+        if (!string.Equals(payload.CoordinateSystem, "world", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new CadRequestException(
+                "Only the 'world' coordinate_system is supported in this proof of concept.");
+        }
+
+        if (payload.RequiresApproval)
+        {
+            throw new CadRequestException(
+                "This request requires approval and was not executed. Resubmit it with requires_approval set to false after approval.");
+        }
+
+        if (payload.Parameters == null)
+        {
+            throw new CadRequestException("parameters is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(payload.Parameters.Layer))
+        {
+            throw new CadRequestException("parameters.layer is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(payload.Units))
+        {
+            throw new CadRequestException("units is required.");
+        }
+
+        ValidatePoint(payload.Parameters.Start, "parameters.start");
+        ValidatePoint(payload.Parameters.End, "parameters.end");
+    }
+
+    private static void ValidatePoint(Point3D? point, string propertyName)
+    {
+        if (point == null ||
+            !double.IsFinite(point.X) ||
+            !double.IsFinite(point.Y) ||
+            !double.IsFinite(point.Z))
+        {
+            throw new CadRequestException(
+                $"{propertyName} must contain finite x, y, and z values.");
         }
     }
+
+    private static Point3d ConvertPoint(Point3D point, double factor) =>
+        new(point.X * factor, point.Y * factor, point.Z * factor);
+
+    private static double GetConversionFactor(
+        string requestUnits,
+        UnitsValue drawingUnits,
+        ICollection<string> warnings)
+    {
+        UnitsValue sourceUnits = requestUnits.Trim().ToLowerInvariant() switch
+        {
+            "inch" or "inches" => UnitsValue.Inches,
+            "foot" or "feet" => UnitsValue.Feet,
+            "millimeter" or "millimeters" or "mm" => UnitsValue.Millimeters,
+            "centimeter" or "centimeters" or "cm" => UnitsValue.Centimeters,
+            "meter" or "meters" or "m" => UnitsValue.Meters,
+            _ => throw new CadRequestException(
+                $"Unsupported units '{requestUnits}'. Supported values are inches, feet, millimeters, centimeters, and meters.")
+        };
+
+        UnitsValue targetUnits = drawingUnits;
+        if (targetUnits == UnitsValue.Undefined)
+        {
+            targetUnits = UnitsValue.Inches;
+            warnings.Add("The drawing INSUNITS value is Unitless; inches were assumed for conversion.");
+        }
+
+        return UnitsConverter.GetConversionFactor(sourceUnits, targetUnits);
+    }
+
+    private static string CreateUndoToken(string commandId)
+    {
+        const string commandPrefix = "cmd-";
+        string suffix = commandId.StartsWith(commandPrefix, StringComparison.OrdinalIgnoreCase)
+            ? commandId[commandPrefix.Length..]
+            : commandId;
+
+        return $"ai-action-{suffix}";
+    }
 }
+
+public sealed class CadRequestException(string message) : Exception(message);

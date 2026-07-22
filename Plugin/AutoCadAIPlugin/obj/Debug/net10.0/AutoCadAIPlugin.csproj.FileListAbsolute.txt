@@ -1,0 +1,6 @@
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.csproj.AssemblyReference.cache
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.AssemblyInfoInputs.cache
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.AssemblyInfo.cs
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.csproj.CoreCompileInputs.cache
+C:\Users\Luke\Desktop\Programming\AutoCAD-AI\Plugin\AutoCadAIPlugin\obj\Debug\net10.0\AutoCadAIPlugin.sourcelink.json

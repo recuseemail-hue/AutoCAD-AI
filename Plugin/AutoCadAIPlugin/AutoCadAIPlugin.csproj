@@ -4,12 +4,17 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>AutoCadAIPlugin</AssemblyName>
+    <RootNamespace>AutoCadAIPlugin</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AutoCad.NET" Version="26.0.0" />
-    <PackageReference Include="AutoCad.NET.Core" Version="26.0.0" />
-    <PackageReference Include="AutoCad.NET.Model" Version="26.0.0" />
+    <!-- AutoCAD supplies these assemblies at runtime. Excluding runtime assets keeps
+         Autodesk binaries out of the deployable plugin output. -->
+    <PackageReference Include="AutoCad.NET" Version="26.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCad.NET.Core" Version="26.0.0" ExcludeAssets="runtime" />
+    <PackageReference Include="AutoCad.NET.Model" Version="26.0.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
 </Project>

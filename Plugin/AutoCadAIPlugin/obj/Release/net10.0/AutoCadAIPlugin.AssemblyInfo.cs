@@ -11,9 +11,9 @@ using System;
 using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("AutoCadAIPlugin")]
-[assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
+[assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+557c2063dee799e1dda66d949bc50d956d4b9e85")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3c1f0670566679f61da28d8aa15d16d21f34559f")]
 [assembly: System.Reflection.AssemblyProductAttribute("AutoCadAIPlugin")]
 [assembly: System.Reflection.AssemblyTitleAttribute("AutoCadAIPlugin")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

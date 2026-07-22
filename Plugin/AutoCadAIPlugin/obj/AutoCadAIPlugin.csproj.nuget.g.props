@@ -5,16 +5,17 @@
     <RestoreTool Condition=" '$(RestoreTool)' == '' ">NuGet</RestoreTool>
     <ProjectAssetsFile Condition=" '$(ProjectAssetsFile)' == '' ">$(MSBuildThisFileDirectory)project.assets.json</ProjectAssetsFile>
     <NuGetPackageRoot Condition=" '$(NuGetPackageRoot)' == '' ">$(UserProfile)\.nuget\packages\</NuGetPackageRoot>
-    <NuGetPackageFolders Condition=" '$(NuGetPackageFolders)' == '' ">C:\Users\H604879\.nuget\packages\</NuGetPackageFolders>
+    <NuGetPackageFolders Condition=" '$(NuGetPackageFolders)' == '' ">C:\Users\Luke\.nuget\packages\;C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages</NuGetPackageFolders>
     <NuGetProjectStyle Condition=" '$(NuGetProjectStyle)' == '' ">PackageReference</NuGetProjectStyle>
     <NuGetToolVersion Condition=" '$(NuGetToolVersion)' == '' ">7.0.0</NuGetToolVersion>
   </PropertyGroup>
   <ItemGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <SourceRoot Include="C:\Users\H604879\.nuget\packages\" />
+    <SourceRoot Include="C:\Users\Luke\.nuget\packages\" />
+    <SourceRoot Include="C:\Program Files (x86)\Microsoft Visual Studio\Shared\NuGetPackages\" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(ExcludeRestorePackageImports)' != 'true' ">
-    <PkgAutoCAD_NET_Model Condition=" '$(PkgAutoCAD_NET_Model)' == '' ">C:\Users\H604879\.nuget\packages\autocad.net.model\26.0.0</PkgAutoCAD_NET_Model>
-    <PkgAutoCAD_NET_Core Condition=" '$(PkgAutoCAD_NET_Core)' == '' ">C:\Users\H604879\.nuget\packages\autocad.net.core\26.0.0</PkgAutoCAD_NET_Core>
-    <PkgAutoCAD_NET Condition=" '$(PkgAutoCAD_NET)' == '' ">C:\Users\H604879\.nuget\packages\autocad.net\26.0.0</PkgAutoCAD_NET>
+    <PkgAutoCAD_NET_Model Condition=" '$(PkgAutoCAD_NET_Model)' == '' ">C:\Users\Luke\.nuget\packages\autocad.net.model\26.0.0</PkgAutoCAD_NET_Model>
+    <PkgAutoCAD_NET_Core Condition=" '$(PkgAutoCAD_NET_Core)' == '' ">C:\Users\Luke\.nuget\packages\autocad.net.core\26.0.0</PkgAutoCAD_NET_Core>
+    <PkgAutoCAD_NET Condition=" '$(PkgAutoCAD_NET)' == '' ">C:\Users\Luke\.nuget\packages\autocad.net\26.0.0</PkgAutoCAD_NET>
   </PropertyGroup>
 </Project>

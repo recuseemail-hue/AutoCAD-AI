@@ -1,117 +1,333 @@
-﻿using System;
-using System.IO;
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using AutoCadAIPlugin.Models;
+using Autodesk.AutoCAD.ApplicationServices;
+using Application = Autodesk.AutoCAD.ApplicationServices.Application;
 
 namespace AutoCadAIPlugin.Services;
 
-public class PythonBridge
+public sealed class PythonBridge
 {
-    private HttpListener? _listener;
+    private const int MaxRequestBytes = 1024 * 1024;
+    private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
+
+    private readonly ConcurrentQueue<PendingCommand> _pendingCommands = new();
     private readonly DrawingService _drawingService = new();
-    private bool _isRunning;
+    private HttpListener? _listener;
+    private CancellationTokenSource? _shutdown;
+
+    public bool IsRunning { get; private set; }
+
+    public int Port { get; private set; }
+
+    public string Endpoint => $"http://localhost:{Port}/command";
 
     public void Start(int port = 8080)
     {
-        if (_isRunning) return;
+        if (IsRunning)
+        {
+            return;
+        }
 
-        _listener = new HttpListener();
-        _listener.Prefixes.Add($"http://localhost:{port}/command/");
-        _listener.Start();
-        _isRunning = true;
+        HttpListener listener = new();
+        listener.Prefixes.Add($"http://localhost:{port}/");
 
-        // Run the listener loop on a background thread so it doesn't freeze the AutoCAD UI
-        Task.Run(() => ListenLoopAsync());
+        try
+        {
+            listener.Start();
+        }
+        catch
+        {
+            listener.Close();
+            throw;
+        }
+
+        _listener = listener;
+        _shutdown = new CancellationTokenSource();
+        Port = port;
+        IsRunning = true;
+
+        // AutoCAD database work is drained on its UI thread from the Idle event.
+        Application.Idle += OnApplicationIdle;
+        _ = Task.Run(() => ListenLoopAsync(listener, _shutdown.Token));
     }
 
     public void Stop()
     {
-        _isRunning = false;
-        _listener?.Stop();
+        if (!IsRunning)
+        {
+            return;
+        }
+
+        IsRunning = false;
+        Application.Idle -= OnApplicationIdle;
+        _shutdown?.Cancel();
         _listener?.Close();
+        _listener = null;
+
+        while (_pendingCommands.TryDequeue(out PendingCommand? pending))
+        {
+            pending.Completion.TrySetCanceled();
+        }
+
+        _shutdown?.Dispose();
+        _shutdown = null;
     }
 
-    private async Task ListenLoopAsync()
+    private async Task ListenLoopAsync(HttpListener listener, CancellationToken cancellationToken)
     {
-        while (_isRunning && _listener != null)
+        while (!cancellationToken.IsCancellationRequested && listener.IsListening)
         {
             try
             {
-                HttpListenerContext context = await _listener.GetContextAsync();
-                _ = Task.Run(() => ProcessRequestAsync(context)); // Handle request concurrently
+                HttpListenerContext context = await listener.GetContextAsync()
+                    .WaitAsync(cancellationToken);
+                _ = ProcessRequestSafelyAsync(context, cancellationToken);
             }
-            catch (HttpListenerException) when (!_isRunning)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // Expected exception when stopping the listener
+                break;
             }
-            catch (Exception ex)
+            catch (HttpListenerException) when (!listener.IsListening)
             {
-                // In production, log this error to your AutoCAD console or file logger
-                Console.WriteLine($"Bridge error: {ex.Message}");
+                break;
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
             }
         }
     }
 
-    private async Task ProcessRequestAsync(HttpListenerContext context)
+    private async Task ProcessRequestSafelyAsync(
+        HttpListenerContext context,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await ProcessRequestAsync(context, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // AutoCAD is shutting down; the client connection may already be gone.
+        }
+        catch (Exception exception)
+        {
+            await TryWriteJsonAsync(
+                context.Response,
+                CadResponse.Error(string.Empty, $"Bridge error: {exception.Message}"),
+                HttpStatusCode.InternalServerError,
+                CancellationToken.None);
+        }
+        finally
+        {
+            context.Response.Close();
+        }
+    }
+
+    private async Task ProcessRequestAsync(
+        HttpListenerContext context,
+        CancellationToken cancellationToken)
     {
         HttpListenerRequest request = context.Request;
         HttpListenerResponse response = context.Response;
+        string path = request.Url?.AbsolutePath.TrimEnd('/') ?? string.Empty;
 
-        if (request.HttpMethod == "POST")
+        if (string.Equals(path, "/health", StringComparison.OrdinalIgnoreCase))
         {
-            try
+            if (!string.Equals(request.HttpMethod, "GET", StringComparison.OrdinalIgnoreCase))
             {
-                // 1. Read raw JSON string from Python payload stream
-                using StreamReader reader = new(request.InputStream, Encoding.UTF8);
-                string jsonString = await reader.ReadToEndAsync();
-
-                // 2. Parse using the .NET 10 serialization model
-                CadPayload? payload = JsonSerializer.Deserialize<CadPayload>(jsonString);
-
-                if (payload != null && payload.Operation.Equals("create_line", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 3. Dispatch to your drawing service execution layout
-                    // Note: AutoCAD transactions must run on the primary document execution context thread. 
-                    // This service class invocation logic handles drawing routing.
-                    _drawingService.CreateLine(payload);
-
-                    // 4. Return structural mock success response back to Python
-                    var successObj = new { status = "success", command_id = payload.CommandId, message = "Line created." };
-                    byte[] buffer = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(successObj));
-
-                    response.StatusCode = (int)HttpStatusCode.OK;
-                    response.ContentType = "application/json";
-                    response.ContentLength64 = buffer.Length;
-                    await response.OutputStream.WriteAsync(buffer);
-                }
-                else
-                {
-                    await SendErrorResponse(response, HttpStatusCode.BadRequest, "Unsupported operation payload target.");
-                }
+                response.Headers["Allow"] = "GET";
+                await WriteJsonAsync(
+                    response,
+                    CadResponse.Error(string.Empty, "Only GET is allowed for /health."),
+                    HttpStatusCode.MethodNotAllowed,
+                    cancellationToken);
+                return;
             }
-            catch (Exception ex)
-            {
-                await SendErrorResponse(response, HttpStatusCode.InternalServerError, ex.Message);
-            }
-        }
-        else
-        {
-            await SendErrorResponse(response, HttpStatusCode.MethodNotAllowed, "Only POST is allowed.");
+
+            await WriteJsonAsync(
+                response,
+                new { status = "ok", application = "autocad", schema_version = "0.1" },
+                HttpStatusCode.OK,
+                cancellationToken);
+            return;
         }
 
-        response.Close();
+        if (!string.Equals(path, "/command", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(string.Empty, "Route not found. Use POST /command or GET /health."),
+                HttpStatusCode.NotFound,
+                cancellationToken);
+            return;
+        }
+
+        if (!string.Equals(request.HttpMethod, "POST", StringComparison.OrdinalIgnoreCase))
+        {
+            response.Headers["Allow"] = "POST";
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(string.Empty, "Only POST is allowed for /command."),
+                HttpStatusCode.MethodNotAllowed,
+                cancellationToken);
+            return;
+        }
+
+        if (request.ContentLength64 > MaxRequestBytes)
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(string.Empty, "The JSON request exceeds the 1 MB limit."),
+                HttpStatusCode.RequestEntityTooLarge,
+                cancellationToken);
+            return;
+        }
+
+        CadPayload? payload;
+        try
+        {
+            using StreamReader reader = new(
+                request.InputStream,
+                request.ContentEncoding ?? Encoding.UTF8,
+                detectEncodingFromByteOrderMarks: true,
+                leaveOpen: true);
+            string json = await reader.ReadToEndAsync(cancellationToken);
+            payload = JsonSerializer.Deserialize<CadPayload>(json, JsonOptions);
+        }
+        catch (JsonException exception)
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(string.Empty, $"Malformed JSON: {exception.Message}"),
+                HttpStatusCode.BadRequest,
+                cancellationToken);
+            return;
+        }
+
+        if (payload == null)
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(string.Empty, "The JSON request body is required."),
+                HttpStatusCode.BadRequest,
+                cancellationToken);
+            return;
+        }
+
+        PendingCommand pending = new(payload);
+        _pendingCommands.Enqueue(pending);
+
+        try
+        {
+            CadResponse commandResponse = await pending.Completion.Task
+                .WaitAsync(CommandTimeout, cancellationToken);
+            await WriteJsonAsync(response, commandResponse, HttpStatusCode.OK, cancellationToken);
+        }
+        catch (TimeoutException)
+        {
+            pending.Completion.TrySetCanceled();
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(
+                    payload.CommandId,
+                    "AutoCAD did not become idle within 30 seconds; the command was not executed."),
+                HttpStatusCode.ServiceUnavailable,
+                cancellationToken);
+        }
+        catch (CadRequestException exception)
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(payload.CommandId, exception.Message),
+                HttpStatusCode.BadRequest,
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            await WriteJsonAsync(
+                response,
+                CadResponse.Error(payload.CommandId, $"AutoCAD command failed: {exception.Message}"),
+                HttpStatusCode.InternalServerError,
+                cancellationToken);
+        }
     }
 
-    private async Task SendErrorResponse(HttpListenerResponse response, HttpStatusCode status, string message)
+    private void OnApplicationIdle(object? sender, EventArgs eventArgs)
     {
-        var errorObj = new { status = "error", message = message };
-        byte[] buffer = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(errorObj));
-        response.StatusCode = (int)status;
-        response.ContentType = "application/json";
+        const int maxCommandsPerIdleCycle = 20;
+
+        for (int index = 0;
+             index < maxCommandsPerIdleCycle && _pendingCommands.TryDequeue(out PendingCommand? pending);
+             index++)
+        {
+            if (pending.Completion.Task.IsCompleted)
+            {
+                continue;
+            }
+
+            try
+            {
+                Document document = Application.DocumentManager.MdiActiveDocument;
+                if (document == null)
+                {
+                    throw new CadRequestException("No active AutoCAD drawing is available.");
+                }
+
+                using DocumentLock documentLock = document.LockDocument();
+                CadResponse response = _drawingService.CreateLine(pending.Payload);
+                pending.Completion.TrySetResult(response);
+            }
+            catch (Exception exception)
+            {
+                pending.Completion.TrySetException(exception);
+            }
+        }
+    }
+
+    private static async Task WriteJsonAsync<T>(
+        HttpListenerResponse response,
+        T value,
+        HttpStatusCode statusCode,
+        CancellationToken cancellationToken)
+    {
+        byte[] buffer = JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions);
+        response.StatusCode = (int)statusCode;
+        response.ContentType = "application/json; charset=utf-8";
+        response.ContentEncoding = Encoding.UTF8;
         response.ContentLength64 = buffer.Length;
-        await response.OutputStream.WriteAsync(buffer);
+        await response.OutputStream.WriteAsync(buffer, cancellationToken);
+    }
+
+    private static async Task TryWriteJsonAsync<T>(
+        HttpListenerResponse response,
+        T value,
+        HttpStatusCode statusCode,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await WriteJsonAsync(response, value, statusCode, cancellationToken);
+        }
+        catch
+        {
+            // The client disconnected or the response had already started.
+        }
+    }
+
+    private sealed class PendingCommand(CadPayload payload)
+    {
+        public CadPayload Payload { get; } = payload;
+
+        public TaskCompletionSource<CadResponse> Completion { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 }
