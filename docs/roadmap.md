@@ -1,744 +1,305 @@
 # AutoCAD-AI Roadmap
 
-## 1. Project Mission
+Last updated: July 21, 2026.
+
+## Status Legend
+
+- **Complete** - implemented and verified.
+- **Active** - currently being built or corrected.
+- **Waiting** - dependent on teammate work or an external condition.
+- **Planned** - intentionally deferred until earlier infrastructure works.
+
+## Current Milestone
+
+The project is building its first real vertical slice:
+
+> A user asks Odysseus to create one line; the request travels through MCP and the Python bridge to the AutoCAD 2027 plugin; AutoCAD creates the line; the actual result returns to Odysseus; and the operation can be undone safely.
+
+The Odysseus-to-bridge portion is working. The AutoCAD plugin is not yet connected, so the complete line-creation path has not been verified.
+
+## Progress Summary
+
+| Area | Status |
+|---|---|
+| Repository and Python environment | Complete |
+| Command schema v0.1 for `create_line` | Complete baseline |
+| FastAPI health and command validation | Complete baseline |
+| AutoCAD connection-status endpoint | Complete |
+| WebSocket endpoint for AutoCAD | Partial |
+| MCP server and three Odysseus tools | Complete baseline |
+| Odysseus MCP discovery | Complete: 3/3 tools |
+| Odysseus bridge-health tool call | Complete |
+| Odysseus AutoCAD-status tool call | Complete |
+| Command-result correlation | Active |
+| Backend test alignment after mock removal | Active |
+| AutoCAD 2027 plugin connection | Waiting on teammate |
+| Real AutoCAD line creation | Waiting |
+| Undo of an AI operation | Waiting |
+
+## Phase 1 - Foundation
+
+Status: **Complete**
+
+- [x] Create the GitHub repository.
+- [x] Create the Python virtual environment.
+- [x] Install initial Python dependencies.
+- [x] Add `requirements.txt`.
+- [x] Add `.gitignore` rules for local environments and caches.
+- [x] Create the backend, tests, schema, examples, and documentation areas.
+- [x] Establish AutoCAD 2027 as the first target application.
+- [x] Separate teammate-owned plugin work from backend work.
+
+## Phase 2 - Structured Command Contract
+
+Status: **Complete baseline**
+
+- [x] Create `schemas/v0.1/command.schema.json`.
+- [x] Define the `create_line` request.
+- [x] Require a command ID, application, operation, parameters, units, coordinate system, and approval flag.
+- [x] Add valid request and success-response examples.
+- [x] Verify valid JSON loading.
+- [x] Verify that a command missing its endpoint is rejected.
+- [ ] Create a formal response schema.
+- [ ] Define response statuses and error codes.
+- [ ] Define plugin registration and version compatibility messages.
+- [ ] Add separate schemas for WebSocket envelopes and command results.
+
+## Phase 3 - Live Python Bridge
+
+Status: **Active**
+
+Implemented:
+
+- [x] Create the FastAPI application.
+- [x] Add `GET /health`.
+- [x] Add `GET /applications`.
+- [x] Add validated `POST /commands`.
+- [x] Return `422` for invalid commands.
+- [x] Return `503` when AutoCAD is disconnected.
+- [x] Add `WS /ws/autocad`.
+- [x] Store the current AutoCAD WebSocket connection.
+- [x] Detect WebSocket disconnection.
+- [x] Send JSON commands to a connected test client.
+- [x] Stop returning in-process mock success from the active API route.
+
+Next backend work:
+
+- [ ] Store a pending result by `command_id` before sending a command.
+- [ ] Resolve the pending result when the matching plugin response arrives.
+- [ ] Return the correlated result to the original HTTP caller.
+- [ ] Add a command timeout and return `504` cleanly.
+- [ ] Reject duplicate pending command IDs.
+- [ ] Fail and clean pending requests when AutoCAD disconnects.
+- [ ] Reject malformed or unknown plugin responses.
+- [ ] Add structured bridge logging without exposing secrets.
+- [ ] Decide whether local authentication is required before broader use.
+
+## Phase 4 - Odysseus MCP Integration
+
+Status: **Complete baseline**
+
+- [x] Add `backend/src/odysseus_mcp.py`.
+- [x] Use MCP Streamable HTTP on port `8001`.
+- [x] Permit Dockerized Odysseus through `host.docker.internal`.
+- [x] Add `get_bridge_health`.
+- [x] Add `get_autocad_status`.
+- [x] Add `create_autocad_line`.
+- [x] Connect Odysseus using `http://host.docker.internal:8001/mcp`.
+- [x] Verify that Odysseus discovers 3/3 tools.
+- [x] Verify the bridge health tool from an Odysseus conversation.
+- [x] Verify the AutoCAD status tool from an Odysseus conversation.
+- [x] Confirm that the disconnected result accurately reflects bridge state.
+- [ ] Verify `create_autocad_line` against the real plugin.
+- [ ] Add tool descriptions and approval behavior for future operations.
+- [ ] Add concise user-facing interpretations for common bridge errors.
+
+Known model constraint:
+
+- [x] Verify Agent mode with `gpt-4.1` through the current Chat Completions integration.
+- [ ] Add Odysseus Responses API support, or an equivalent compatible setting, before relying on `gpt-5.6-sol` with tools and reasoning enabled.
+
+## Phase 5 - Test Suite Alignment
 
-Create an AI-assisted design platform that begins with an Odysseus chat interface controlling a safe AutoCAD plugin and later expands into Revit, AutoSPRINK, and AI-assisted 3D model generation.
+Status: **Active**
 
-The platform should let a user describe a desired result in normal language while deterministic software performs the exact geometry, application, and engineering operations.
+Current verified automated results:
 
-The immediate objective is not to build every feature. It is to design the system well, prove the full communication path with a very small AutoCAD feature set, and then expand without rebuilding the project from scratch.
+- [x] Invalid command validation passes.
+- [x] MCP Docker-host allowance test passes.
+- [x] MCP bridge-health forwarding test passes.
+- [x] MCP unavailable-bridge structured-error test passes.
 
----
+Required updates:
 
-## 2. Product Direction
+- [ ] Change the health test to expect `AutoCAD-AI bridge` instead of the retired `AutoCAD-AI mock bridge` label.
+- [ ] Change the disconnected command test to expect `503` instead of a fake `200` success.
+- [ ] Add an async WebSocket test client that returns a correlated command result.
+- [ ] Test command timeout behavior.
+- [ ] Test client disconnection during a pending command.
+- [ ] Test duplicate and unexpected command results.
+- [ ] Convert the example validation script into collected pytest functions if it should remain part of the suite.
+- [ ] Resolve or deliberately pin the Starlette/httpx test-client deprecation warning.
 
-### Near-term product
+## Phase 6 - AutoCAD 2027 Plugin Connection
+
+Status: **Waiting on teammate**
 
-A conversational AutoCAD assistant that can:
+The `Plugin/` directory is teammate-owned and is not modified by backend work.
 
-- Connect to the active AutoCAD session
-- Read basic drawing information
-- Create simple drawing entities
-- Modify selected entities
-- Explain what it plans to do
-- Ask for approval when appropriate
-- Return clear results and errors
-- Group AI actions into undoable operations
+Shared integration requirements:
 
-### Mid-term product
+- [ ] Build and load the plugin in AutoCAD 2027.
+- [ ] Connect to `ws://127.0.0.1:8000/ws/autocad`.
+- [ ] Report a stable plugin/application identity and version.
+- [ ] Receive a schema-v0.1 `create_line` command.
+- [ ] Marshal execution into a valid AutoCAD context.
+- [ ] Validate drawing state, units, layer, and geometry independently.
+- [ ] Execute the operation in a native AutoCAD transaction.
+- [ ] Return a structured result with the original `command_id`.
+- [ ] Include the active document and affected object handle.
+- [ ] Group the operation so the user can undo it safely.
+- [ ] Reconnect after AutoCAD or the bridge restarts.
 
-A drawing assistant that can:
+Completion criteria:
 
-- Understand larger drafting requests
-- Work with layers, blocks, dimensions, and object properties
-- Inspect drawings and selections
-- Perform repetitive cleanup and layout work
-- Use images and PDFs as reference information
-- Recognize common plan objects
-- Build compound objects from simple commands
+> `get_autocad_status` reports connected from Odysseus while the real AutoCAD 2027 plugin is loaded.
 
-### Long-term product
+## Phase 7 - First Real Drawing Operation
 
-A multi-application design assistant that can:
+Status: **Waiting**
 
-- Work in AutoCAD, Revit, and AutoSPRINK
-- Generate native 2D and 3D objects
-- Coordinate information between applications
-- Interpret plans and specifications
-- Assist with discipline-specific workflows
-- Use deterministic rules for geometry, calculations, and code checks
-- Maintain project context and an auditable action history
+- [ ] Open a disposable AutoCAD test drawing.
+- [ ] Confirm drawing units.
+- [ ] Ask Odysseus to create one explicitly located line.
+- [ ] Validate the command at the MCP and bridge boundaries.
+- [ ] Create or select the requested layer safely.
+- [ ] Create the native AutoCAD line.
+- [ ] Return the actual document, layer, and object handle.
+- [ ] Display the result in Odysseus.
+- [ ] Undo the complete AI action once.
+- [ ] Repeat the test after restarting the bridge and plugin.
+
+Completion criteria:
 
----
+> The full result comes from AutoCAD, not a browser test client or mock backend.
 
-## 3. Guiding Rules for Development
+## Phase 8 - Read-Only AutoCAD Tools
 
-1. Prove one complete workflow before adding many features.
-2. Keep natural-language reasoning separate from application execution.
-3. Use structured, versioned commands between components.
-4. Make reading application state reliable before allowing broad write access.
-5. Keep every action undoable or recoverable where possible.
-6. Require approval for destructive, ambiguous, or safety-critical actions.
-7. Build application adapters separately.
-8. Use deterministic geometry and rules instead of relying on AI guesses.
-9. Log what the system intended, executed, and returned.
-10. Add tests for every command before combining commands into complex workflows.
+Status: **Planned**
 
----
+Read operations should precede broader write access.
 
-# Phase 0 — Planning and System Definition
+- [ ] Get active document.
+- [ ] Get document read-only state.
+- [ ] Get drawing units.
+- [ ] Get current UCS.
+- [ ] Get current layer.
+- [ ] List layers.
+- [ ] Get selected objects.
+- [ ] Get entity properties by stable identifier.
+- [ ] Get drawing extents.
 
-## Goal
+## Phase 9 - Primitive AutoCAD Operations
 
-Agree on what the project is, how the major parts communicate, and what the first proof of concept must demonstrate.
+Status: **Planned**
 
-## Questions to answer
+- [ ] Create a layer.
+- [ ] Create a polyline.
+- [ ] Create a circle.
+- [ ] Create an arc.
+- [ ] Create text.
+- [ ] Insert a known block.
+- [ ] Move, copy, rotate, and change layer.
+- [ ] Preview proposed targets before modification.
+- [ ] Add approval for delete and bulk-edit operations.
+- [ ] Group multi-entity requests into one undoable action.
 
-- [ ] What exact role will Odysseus play?
-- [ ] Which AI model will Odysseus use initially?
-- [ ] Can Odysseus call local tools directly, through MCP, or through an HTTP service?
-- [ ] Which AutoCAD version will be supported first?
-- [ ] Which .NET runtime does that AutoCAD version require?
-- [ ] Will the AutoCAD plugin connect outward to a bridge, or will the bridge call the plugin?
-- [ ] What commands will exist in schema version 0.1?
-- [ ] Which commands require user approval?
-- [ ] How will command history and logs be stored?
-- [ ] How will undo and rollback work?
-- [ ] How will application and project context be represented?
-- [ ] What information may leave the local computer?
-- [ ] What is the first practical AutoSPRINK integration path?
+Each operation requires a versioned schema, validation, plugin result, automated test, and recovery behavior before it is considered complete.
 
-## Documents to maintain
+## Phase 10 - Compound 2D Drafting
 
-- [x] Project architecture
-- [x] Project roadmap
-- [ ] Command schema draft
-- [ ] Safety and approval policy
-- [ ] First proof-of-concept sequence diagram
-- [ ] Application support matrix
-- [ ] Decision log
+Status: **Planned**
 
-## Completion criteria
+- [ ] Build rectangular room geometry.
+- [ ] Create wall thickness with controlled offsets.
+- [ ] Place door and window openings.
+- [ ] Create repeated grids and block layouts.
+- [ ] Add dimensions and notes.
+- [ ] Detect duplicate, disconnected, or short geometry.
+- [ ] Preview and approve compound operations.
 
-The team can explain the first system in one sentence:
-
-> A user asks Odysseus to perform a simple AutoCAD operation; Odysseus sends a validated structured command through a local bridge; an AutoCAD plugin executes the command and returns a result.
+Compound workflows must decompose into logged primitive commands.
 
----
+## Phase 11 - Images and PDFs
 
-# Phase 1 — Repository and Development Foundation
+Status: **Planned**
 
-## Goal
+- [ ] Upload images and PDFs through the project interface.
+- [ ] Prefer native/vector geometry when available.
+- [ ] Rasterize scanned pages only when needed.
+- [ ] Calibrate scale using confirmed reference points.
+- [ ] Detect candidate lines, arcs, text, and symbols.
+- [ ] Overlay detections for user review.
+- [ ] Send only approved geometry to the application adapter.
+- [ ] Preserve source-page and confidence provenance.
 
-Create a clean project foundation that can support a Python backend and one or more application plugins.
+## Phase 12 - Revit and Basic 3D
 
-## Tasks
+Status: **Planned**
 
-- [x] Create GitHub repository
-- [x] Install Python
-- [x] Create Python virtual environment
-- [x] Install initial Python packages
-- [x] Create `requirements.txt`
-- [x] Create initial folders
-- [x] Create architecture documentation
-- [x] Create roadmap documentation
-- [ ] Add `.gitignore`
-- [ ] Decide whether to keep or remove the early image-processing dependencies
-- [ ] Create a minimal backend entry point
-- [ ] Create a test folder and first automated test
-- [ ] Add a configuration example file
-- [ ] Add basic logging
-- [ ] Define branch and commit conventions
-- [ ] Make a clean foundation commit
+- [ ] Define a separate Revit adapter.
+- [ ] Read active project, view, units, and levels.
+- [ ] Create one native Revit element through the shared command platform.
+- [ ] Define shared 3D profiles, heights, levels, and openings.
+- [ ] Generate a small editable 3D building from approved 2D information.
+- [ ] Keep Revit transactions and object identity application-specific.
 
-## Possible repository structure
+## Phase 13 - AutoSPRINK and Fire-Protection Assistance
 
-```text
-AutoCAD-AI/
-├── backend/
-│   ├── src/
-│   └── tests/
-├── plugins/
-│   └── autocad/
-├── schemas/
-├── docs/
-├── examples/
-├── README.md
-├── requirements.txt
-└── .gitignore
-```
+Status: **Planned**
 
-## Completion criteria
+- [ ] Research supported AutoSPRINK integration interfaces.
+- [ ] Define domain objects for sprinklers, pipe, fittings, and connectivity.
+- [ ] Prove one supported read-only operation.
+- [ ] Prove one supported reversible write operation.
+- [ ] Add deterministic, versioned engineering rules separately from AI reasoning.
+- [ ] Require qualified human review for hazard classification, calculations, and compliance decisions.
 
-- The repository has no generated virtual-environment files tracked by Git.
-- The backend runs a simple health-check command.
-- The test suite can be run with one command.
-- The architecture and roadmap match the current product direction.
+## Phase 14 - Production Hardening
 
----
+Status: **Planned**
 
-# Phase 2 — Command Schema Prototype
+- [ ] Local authentication and permissions.
+- [ ] Installer and application-version checks.
+- [ ] Structured logs and diagnostic exports.
+- [ ] Crash, timeout, and reconnect recovery.
+- [ ] Project-level audit history.
+- [ ] Privacy controls and data-retention policy.
+- [ ] Large-drawing and performance testing.
+- [ ] Plugin compatibility matrix.
+- [ ] User and developer documentation.
 
-## Goal
+## Next Work While Waiting for the Plugin
 
-Define the structured language used by Odysseus, the backend, and the application plugins.
+The next backend task does not require changing teammate-owned code:
 
-## Initial command envelope
+1. Complete command-result correlation in `backend/src/connection_manager.py`.
+2. Update `backend/tests/test_api.py` for the live bridge behavior.
+3. Add a test-only WebSocket client that returns a real correlated result over the transport.
+4. Verify disconnected, timeout, malformed-result, and successful-result paths.
+5. Document the final result envelope for the teammate.
 
-Every request should include fields similar to:
+After that work passes, the browser test client can be replaced by the real AutoCAD plugin without redesigning the Python side.
 
-- Schema version
-- Command ID
-- Target application
-- Operation name
-- Parameters
-- Units
-- Document target
-- Preconditions
-- Approval status
-- Requested timeout
-- Metadata for logging
+## Explicitly Deferred
 
-## First proposed operations
+Until the first live line is created and returned successfully, do not prioritize:
 
-### Connection and status
-
-- [ ] `ping`
-- [ ] `get_application_status`
-- [ ] `get_active_document`
-
-### Read operations
-
-- [ ] `get_units`
-- [ ] `get_current_layer`
-- [ ] `list_layers`
-- [ ] `get_selection`
-- [ ] `get_entity_properties`
-
-### Create operations
-
-- [ ] `create_layer`
-- [ ] `create_line`
-- [ ] `create_polyline`
-- [ ] `create_circle`
-- [ ] `create_text`
-
-### Modify operations
-
-- [ ] `move_entities`
-- [ ] `copy_entities`
-- [ ] `change_layer`
-
-### Safety operations
-
-- [ ] `preview_command`
-- [ ] `approve_command`
-- [ ] `cancel_command`
-- [ ] `undo_command_group`
-
-## Tasks
-
-- [ ] Write JSON Schema or equivalent validation models
-- [ ] Add example valid commands
-- [ ] Add example invalid commands
-- [ ] Define consistent error responses
-- [ ] Define result objects and affected-entity identifiers
-- [ ] Add schema unit tests
-- [ ] Version the schema as `0.1`
-
-## Completion criteria
-
-A backend test can accept a valid `create_line` request, reject an invalid one, and return a predictable result structure without needing AutoCAD.
-
----
-
-# Phase 3 — Local Bridge Proof of Concept
-
-## Goal
-
-Create a local service that can receive commands and communicate with a simulated plugin.
-
-## Tasks
-
-- [ ] Choose HTTP, WebSocket, MCP, or a combined approach
-- [ ] Create a health endpoint
-- [ ] Create a command endpoint
-- [ ] Add request validation
-- [ ] Add command IDs and correlation IDs
-- [ ] Add timeouts
-- [ ] Add structured error responses
-- [ ] Add local authentication or connection token
-- [ ] Create a mock AutoCAD adapter
-- [ ] Log requests and results
-- [ ] Test reconnect behavior
-
-## Completion criteria
-
-A local test client sends a `create_line` command to the bridge, the mock adapter receives it, and the bridge returns a success response.
-
----
-
-# Phase 4 — AutoCAD Plugin Connection
-
-## Goal
-
-Prove reliable two-way communication between the local bridge and an AutoCAD plugin.
-
-## Tasks
-
-- [ ] Confirm initial AutoCAD version
-- [ ] Create the C# plugin project
-- [ ] Reference the correct AutoCAD .NET assemblies
-- [ ] Create a basic command that proves the plugin loaded
-- [ ] Load the plugin with `NETLOAD`
-- [ ] Add a plugin status panel or command
-- [ ] Connect the plugin to the local bridge
-- [ ] Implement `ping`
-- [ ] Implement `get_active_document`
-- [ ] Implement `get_units`
-- [ ] Handle AutoCAD document locking and transactions correctly
-- [ ] Return clear connection errors
-
-## Completion criteria
-
-Odysseus or a temporary test client can ask for the active drawing name and units and receive the correct response from AutoCAD.
-
----
-
-# Phase 5 — First AutoCAD Drawing Operations
-
-## Goal
-
-Create a small, dependable set of drawing tools.
-
-## Tasks
-
-- [ ] Create a layer
-- [ ] Create a line
-- [ ] Create a polyline
-- [ ] Create a circle
-- [ ] Create text
-- [ ] Return handles or stable identifiers
-- [ ] Group each AI request into one undoable action
-- [ ] Validate units and coordinates
-- [ ] Reject invalid or degenerate geometry
-- [ ] Return affected entity properties
-- [ ] Add integration tests using a clean test drawing
-
-## Completion criteria
-
-A user can ask Odysseus to create a line with a defined length, location, and layer. The line appears correctly in AutoCAD, the result is returned to Odysseus, and the action can be undone in one step.
-
----
-
-# Phase 6 — Odysseus End-to-End Integration
-
-## Goal
-
-Use Odysseus as the real conversational interface rather than a temporary test client.
-
-## Tasks
-
-- [ ] Expose the bridge as tools Odysseus can call
-- [ ] Define the system prompt and tool instructions
-- [ ] Require structured tool arguments
-- [ ] Add clarification behavior for missing dimensions or units
-- [ ] Show planned operations before high-risk actions
-- [ ] Display plugin warnings clearly
-- [ ] Return concise execution summaries
-- [ ] Keep an action history in the conversation
-- [ ] Test incorrect and ambiguous user requests
-
-## Example tests
-
-- [ ] “Draw a 10-foot line.” The system asks where or applies an explicitly documented default.
-- [ ] “Delete that.” The system identifies the target and requests confirmation.
-- [ ] “Make a 20-by-30 room.” The system proposes geometry and asks required questions.
-- [ ] “Put it on the wall layer.” The system resolves or creates the intended layer safely.
-
-## Completion criteria
-
-A user can complete the full request-to-result workflow entirely through Odysseus.
-
----
-
-# Phase 7 — Read, Select, and Modify Existing Geometry
-
-## Goal
-
-Allow the assistant to understand and change existing drawing objects, not only create new ones.
-
-## Tasks
-
-- [ ] Read current selection
-- [ ] Query entities by layer, type, handle, or region
-- [ ] Return object properties
-- [ ] Highlight proposed targets
-- [ ] Move entities
-- [ ] Copy entities
-- [ ] Rotate entities
-- [ ] Change layers and properties
-- [ ] Offset entities
-- [ ] Delete entities with approval
-- [ ] Detect stale object references
-- [ ] Add rollback tests
-
-## Completion criteria
-
-The user can select objects in AutoCAD, describe a modification in Odysseus, preview the intended targets, approve it, and receive a verified result.
-
----
-
-# Phase 8 — Compound Drafting Workflows
-
-## Goal
-
-Combine primitive commands into useful drafting operations.
-
-## Possible workflows
-
-- [ ] Create a rectangular room
-- [ ] Create wall thickness using offsets
-- [ ] Place a centered door opening
-- [ ] Place repeated windows
-- [ ] Generate a column grid
-- [ ] Place repeated blocks at spacing
-- [ ] Add dimensions
-- [ ] Create and populate layers
-- [ ] Clean duplicate or short geometry
-- [ ] Align and distribute objects
-
-## Development rule
-
-Every compound workflow must be decomposable into logged primitive operations and must support preview and rollback.
-
-## Completion criteria
-
-A multi-step request creates a predictable group of editable AutoCAD objects and can be undone as one command group.
-
----
-
-# Phase 9 — Drawing and Project Awareness
-
-## Goal
-
-Give the assistant enough context to work intelligently within a real project.
-
-## Tasks
-
-- [ ] Read drawing extents
-- [ ] Read block definitions
-- [ ] Read named views and layouts
-- [ ] Read layers and standards
-- [ ] Store project units and coordinate conventions
-- [ ] Store approved assumptions
-- [ ] Reference external drawings safely
-- [ ] Summarize the current drawing
-- [ ] Detect unsupported or missing context
-- [ ] Add a project context file or database
-
-## Completion criteria
-
-The assistant can answer basic questions about the active drawing and use project standards in later commands without repeatedly asking for the same information.
-
----
-
-# Phase 10 — Image and PDF Understanding
-
-## Goal
-
-Use images and PDFs as source information for drafting and modeling.
-
-## Possible capabilities
-
-- [ ] Upload a floor-plan image or PDF through Odysseus
-- [ ] Detect whether a PDF contains vector data
-- [ ] Extract vector lines when available
-- [ ] Rasterize scanned pages when needed
-- [ ] Detect straight lines, arcs, and text
-- [ ] Recognize dimensions
-- [ ] Determine scale from a known reference
-- [ ] Create a visual preview
-- [ ] Let the user accept or reject detected geometry
-- [ ] Send approved geometry to AutoCAD
-
-## Completion criteria
-
-A clean source plan can be traced into editable AutoCAD geometry with an approval step and known scale.
-
----
-
-# Phase 11 — Domain Object Recognition
-
-## Goal
-
-Recognize that drawing elements represent real design objects rather than only generic lines.
-
-## Possible objects
-
-- Walls
-- Doors
-- Windows
-- Rooms
-- Columns
-- Equipment
-- Plumbing fixtures
-- Electrical symbols
-- Sprinklers
-- Valves
-- Pipes
-- Fittings
-
-## Tasks
-
-- [ ] Define object schemas
-- [ ] Build labeled examples
-- [ ] Evaluate rule-based recognition
-- [ ] Evaluate template matching
-- [ ] Evaluate vision models where useful
-- [ ] Require user review for uncertain classifications
-- [ ] Convert approved detections into native CAD objects or blocks
-
-## Completion criteria
-
-The assistant can identify at least one object class reliably and create or place the corresponding editable object.
-
----
-
-# Phase 12 — Revit Adapter
-
-## Goal
-
-Extend the shared platform into Revit while creating native Revit elements.
-
-## Initial Revit operations
-
-- [ ] Connect to Revit
-- [ ] Get active document and view
-- [ ] List levels
-- [ ] List family types
-- [ ] Create a level
-- [ ] Create a wall
-- [ ] Place a family instance
-- [ ] Create a floor
-- [ ] Read and set parameters
-- [ ] Group changes into transactions
-- [ ] Handle central and local model safety
-
-## Completion criteria
-
-A user can ask Odysseus to create a small native Revit element using the same general command architecture used for AutoCAD.
-
----
-
-# Phase 13 — Basic 3D Model Generation
-
-## Goal
-
-Generate simple native or exportable 3D models from structured instructions and approved 2D information.
-
-## Tasks
-
-- [ ] Define a shared 3D geometry representation
-- [ ] Create closed profiles
-- [ ] Extrude profiles
-- [ ] Generate walls at assigned heights
-- [ ] Create floors and roofs
-- [ ] Add doors and windows
-- [ ] Place repeated components
-- [ ] Validate intersections and openings
-- [ ] Create an interactive preview
-- [ ] Export or create native application geometry
-
-## Possible first project
-
-Generate a small rectangular single-story building from:
-
-- Exterior dimensions
-- Wall thickness
-- Wall height
-- Door and window locations
-- Roof type
-
-## Completion criteria
-
-The system creates a simple, dimensionally correct 3D building that remains editable in the target application.
-
----
-
-# Phase 14 — AutoSPRINK Adapter
-
-## Goal
-
-Add specialized fire sprinkler design capabilities through a supported and reliable AutoSPRINK integration method.
-
-## Research tasks
-
-- [ ] Identify official AutoSPRINK APIs or automation interfaces
-- [ ] Determine whether a plugin can be loaded directly
-- [ ] Investigate AutoCAD-compatible interfaces
-- [ ] Investigate supported import and export formats
-- [ ] Determine how objects, nodes, and connectivity are represented
-- [ ] Determine how hydraulic information can be read safely
-- [ ] Establish licensing and redistribution limitations
-
-## Possible future operations
-
-- [ ] Read selected sprinkler properties
-- [ ] Place a sprinkler
-- [ ] Draw connected pipe
-- [ ] Insert fittings
-- [ ] Change pipe size or elevation
-- [ ] Find disconnected system components
-- [ ] Build branch-line layouts
-- [ ] Create riser components
-- [ ] Identify remote areas
-- [ ] Read calculation results
-- [ ] Generate review reports
-
-## Safety requirement
-
-Hydraulic calculations, code compliance, and engineering decisions must be handled through deterministic, reviewable logic and qualified human approval. The AI should assist rather than act as the final authority.
-
-## Completion criteria
-
-One supported AutoSPRINK operation can be requested through Odysseus, executed safely, and verified in the application.
-
----
-
-# Phase 15 — Rules, Standards, and Engineering Assistance
-
-## Goal
-
-Add reviewable, versioned rules that can assist discipline-specific design without hiding assumptions.
-
-## Tasks
-
-- [ ] Create a ruleset format
-- [ ] Store standard and edition metadata
-- [ ] Cite the rule used in each result
-- [ ] Separate mandatory rules from preferences
-- [ ] Record project-specific overrides
-- [ ] Build deterministic calculations
-- [ ] Add test cases for each rule
-- [ ] Require review for uncertain interpretations
-- [ ] Generate a clear validation report
-
-## Completion criteria
-
-The system can evaluate a narrow, well-defined rule and explain the inputs, rule version, result, and any assumptions.
-
----
-
-# Phase 16 — Multi-Application Coordination
-
-## Goal
-
-Use one conversational workflow to coordinate data and approved operations across several applications.
-
-## Possible workflows
-
-- [ ] Read an AutoCAD floor plan and create a Revit model
-- [ ] Compare AutoCAD and Revit geometry
-- [ ] Import approved Revit background information into a sprinkler workflow
-- [ ] Check sprinkler locations against architectural elements
-- [ ] Translate a shared intent model into multiple application deliverables
-- [ ] Keep references and coordinates synchronized
-
-## Completion criteria
-
-A small approved geometry set can be transferred between two applications without losing units, coordinates, identity, or intent.
-
----
-
-# Phase 17 — Production Hardening
-
-## Goal
-
-Make the platform dependable enough for repeated real-project use.
-
-## Tasks
-
-- [ ] Installer and update process
-- [ ] Version compatibility checks
-- [ ] Secure local authentication
-- [ ] Permission settings
-- [ ] Crash recovery
-- [ ] Command queue recovery
-- [ ] Detailed diagnostic logs
-- [ ] Privacy controls
-- [ ] Project backup and restore
-- [ ] Performance testing
-- [ ] Large-drawing testing
-- [ ] Plugin compatibility matrix
-- [ ] User documentation
-- [ ] Admin and configuration tools
-
-## Completion criteria
-
-The system installs predictably, reports compatibility clearly, handles failures without corrupting project files, and produces useful diagnostics.
-
----
-
-## 4. Capability Ideas for Later Evaluation
-
-These ideas are intentionally not promises or immediate tasks. They describe directions the platform could explore.
-
-### Natural-language drafting
-
-- Create and edit geometry
-- Build rooms and layouts
-- Add dimensions and notes
-- Place repeated objects
-- Follow company layer standards
-
-### Drawing review
-
-- Find duplicate or disconnected objects
-- Find missing dimensions
-- Detect inconsistent layers or types
-- Compare two drawing revisions
-- Summarize changes
-
-### Project automation
-
-- Set up sheets and views
-- Create standard details
-- Rename objects
-- Populate parameters
-- Generate schedules and reports
-- Prepare issue packages
-
-### Visual understanding
-
-- Read marked-up plans
-- Trace plan images
-- Recognize symbols
-- Interpret screenshots
-- Convert sketches into editable geometry
-
-### 3D generation
-
-- Convert 2D plans into basic buildings
-- Create parametric walls and openings
-- Place equipment from instructions
-- Produce concept models
-- Send models to Revit or Blender
-
-### Fire protection assistance
-
-- Place and count sprinklers
-- Route pipe
-- Build riser diagrams
-- Check connectivity
-- Review design data
-- Assist with calculations and reports
-
----
-
-## 5. Current Priority
-
-The current priority is **planning**, not plugin development.
-
-Before beginning the AutoCAD plugin, complete these planning deliverables:
-
-1. Finalize the system architecture.
-2. Decide the initial AutoCAD and .NET versions.
-3. Confirm how Odysseus can call local tools.
-4. Choose the first bridge protocol.
-5. Draft command schema version 0.1.
-6. Define the approval and safety policy.
-7. Define the first ten plugin operations.
-8. Draw an end-to-end sequence diagram.
-9. Define the exact first milestone and test procedure.
-10. Record unresolved decisions rather than hiding assumptions.
-
----
-
-## 6. First Deliverable After Planning
-
-The first implementation deliverable should be deliberately small:
-
-> From Odysseus, request the active AutoCAD drawing name and units, then create one line with explicit coordinates, units, and layer information. Return the result and allow the entire action to be undone once.
-
-This proves the core platform before work begins on complex drawing interpretation, Revit, AutoSPRINK, or 3D model generation.
+- autonomous full-drawing generation;
+- hydraulic calculations;
+- fire-code compliance claims;
+- full PDF plan recognition;
+- production databases;
+- multi-user deployment;
+- Revit or AutoSPRINK implementation;
+- broad destructive editing tools.
