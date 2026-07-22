@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 
 BRIDGE_URL = os.getenv(
@@ -12,6 +13,14 @@ BRIDGE_URL = os.getenv(
 ).rstrip("/")
 
 BRIDGE_TIMEOUT_SECONDS = 30.0
+
+MCP_TRANSPORT_SECURITY = TransportSecuritySettings(
+    allowed_hosts=[
+        "127.0.0.1:*",
+        "localhost:*",
+        "host.docker.internal:*",
+    ],
+)
 
 mcp = FastMCP(
     "AutoCAD-AI",
@@ -23,6 +32,7 @@ mcp = FastMCP(
     port=8001,
     stateless_http=True,
     json_response=True,
+    transport_security=MCP_TRANSPORT_SECURITY,
 )
 
 

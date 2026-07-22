@@ -6,6 +6,12 @@ import pytest
 from backend.src import odysseus_mcp
 
 
+def test_docker_host_is_allowed() -> None:
+    assert "host.docker.internal:*" in (
+        odysseus_mcp.MCP_TRANSPORT_SECURITY.allowed_hosts
+    )
+
+
 @pytest.mark.anyio
 async def test_bridge_health_tool_calls_http_bridge(
     monkeypatch: pytest.MonkeyPatch,
