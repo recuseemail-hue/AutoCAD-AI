@@ -16,9 +16,23 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 New-Item -ItemType Directory -Path $distributionDirectory -Force | Out-Null
-Copy-Item -LiteralPath (Join-Path $releaseOutput "AutoCadAIPlugin.dll") `
-    -Destination $distributionDirectory -Force
-Copy-Item -LiteralPath (Join-Path $releaseOutput "AutoCadAIPlugin.pdb") `
-    -Destination $distributionDirectory -Force
+$sourceDll = Join-Path $releaseOutput "AutoCadAIPlugin.dll"
+$sourcePdb = Join-Path $releaseOutput "AutoCadAIPlugin.pdb"
+$destinationDll = Join-Path $distributionDirectory "AutoCadAIPlugin.dll"
+$destinationPdb = Join-Path $distributionDirectory "AutoCadAIPlugin.pdb"
 
-Write-Host "Plugin ready: $(Join-Path $distributionDirectory 'AutoCadAIPlugin.dll')"
+try {
+    Copy-Item -LiteralPath $sourceDll -Destination $destinationDll -Force
+    Copy-Item -LiteralPath $sourcePdb -Destination $destinationPdb -Force
+}
+catch [System.IO.IOException] {
+    [xml]$project = Get-Content -LiteralPath $projectFile
+    $version = [string]$project.Project.PropertyGroup.Version
+    $destinationDll = Join-Path $distributionDirectory "AutoCadAIPlugin-v$version.dll"
+    $destinationPdb = Join-Path $distributionDirectory "AutoCadAIPlugin-v$version.pdb"
+    Copy-Item -LiteralPath $sourceDll -Destination $destinationDll -Force
+    Copy-Item -LiteralPath $sourcePdb -Destination $destinationPdb -Force
+    Write-Warning "The canonical DLL is loaded by AutoCAD. Wrote a versioned build instead."
+}
+
+Write-Host "Plugin ready: $destinationDll"

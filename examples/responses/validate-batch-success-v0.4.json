@@ -1,0 +1,55 @@
+{
+  "schema_version": "0.4",
+  "run_id": "run-batch-example-001",
+  "import_id": "import-batch-example-001",
+  "command_id": "cmd-batch-validate-example-001",
+  "application": "autocad",
+  "operation": "execute_batch",
+  "status": "success",
+  "message": "Batch validation succeeded.",
+  "error": null,
+  "affected_objects": [],
+  "data": {
+    "validate_only": true,
+    "validated_count": 2,
+    "created_count": 0,
+    "rolled_back": false,
+    "entity_results": [
+      {
+        "client_entity_id": "line-001",
+        "entity_type": "line",
+        "status": "validated",
+        "object_id": null,
+        "layer": "AI-BATCH"
+      },
+      {
+        "client_entity_id": "polyline-001",
+        "entity_type": "polyline",
+        "status": "validated",
+        "object_id": null,
+        "layer": "AI-BATCH"
+      }
+    ],
+    "layer_actions": [
+      {
+        "layer": "AI-BATCH",
+        "action": "would_create"
+      }
+    ]
+  },
+  "undo_token": null,
+  "warnings": [],
+  "document": {
+    "name": "Drawing1.dwg",
+    "fingerprint_guid": "11111111-1111-1111-1111-111111111111"
+  },
+  "versions": {
+    "bridge": "0.4.0",
+    "plugin": "0.4.0"
+  },
+  "timestamps": {
+    "submitted_at": "2026-07-23T12:00:00Z",
+    "bridge_received_at": "2026-07-23T12:00:00.100Z",
+    "completed_at": "2026-07-23T12:00:00.200Z"
+  }
+}

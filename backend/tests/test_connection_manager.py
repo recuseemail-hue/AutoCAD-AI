@@ -24,6 +24,15 @@ V02_COMMAND = {
     "import_id": None,
 }
 
+V04_COMMAND = {
+    **COMMAND,
+    "schema_version": "0.4",
+    "run_id": "run-batch-001",
+    "import_id": "import-batch-001",
+    "application": "autocad",
+    "operation": "execute_batch",
+}
+
 
 @pytest.mark.anyio
 async def test_health_check_detects_loaded_plugin() -> None:
@@ -142,6 +151,59 @@ async def test_mismatched_v02_lifecycle_identity_is_rejected(
 
     with pytest.raises(ValueError, match=rf"{field} did not match"):
         await plugin.send_command(V02_COMMAND)
+
+
+@pytest.mark.anyio
+async def test_v04_result_is_correlated_across_all_contract_fields() -> None:
+    result = {
+        "schema_version": "0.4",
+        "run_id": "run-batch-001",
+        "import_id": "import-batch-001",
+        "command_id": "cmd-001",
+        "application": "autocad",
+        "operation": "execute_batch",
+        "status": "success",
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=result)
+
+    plugin = AutoCADPluginClient(transport=httpx.MockTransport(handler))
+
+    assert await plugin.send_command(V04_COMMAND) == result
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("schema_version", "0.3"),
+        ("application", "revit"),
+        ("operation", "create_line"),
+    ],
+)
+async def test_mismatched_v04_contract_field_is_rejected(
+    field: str,
+    value: str,
+) -> None:
+    result = {
+        "schema_version": "0.4",
+        "run_id": "run-batch-001",
+        "import_id": "import-batch-001",
+        "command_id": "cmd-001",
+        "application": "autocad",
+        "operation": "execute_batch",
+        "status": "success",
+    }
+    result[field] = value
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=result)
+
+    plugin = AutoCADPluginClient(transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match=rf"{field} did not match"):
+        await plugin.send_command(V04_COMMAND)
 
 
 @pytest.mark.anyio

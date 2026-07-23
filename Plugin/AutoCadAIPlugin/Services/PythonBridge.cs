@@ -12,7 +12,7 @@ public sealed class PythonBridge
 {
     public const int DefaultPort = 8765;
 
-    private const int MaxRequestBytes = 1024 * 1024;
+    private const int MaxRequestBytes = 16 * 1024 * 1024;
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -23,6 +23,7 @@ public sealed class PythonBridge
     private readonly ConcurrentQueue<PendingCommand> _pendingCommands = new();
     private readonly DrawingService _drawingService = new();
     private readonly ReadOnlyDrawingService _readOnlyDrawingService = new();
+    private readonly BatchExecutionService _batchExecutionService = new();
     private HttpListener? _listener;
     private CancellationTokenSource? _shutdown;
 
@@ -169,7 +170,7 @@ public sealed class PythonBridge
                     status = "ok",
                     application = "autocad",
                     plugin_version = CadResponse.PluginVersion,
-                    supported_schema_versions = new[] { "0.1", "0.2", "0.3" }
+                    supported_schema_versions = new[] { "0.1", "0.2", "0.3", "0.4" }
                 },
                 HttpStatusCode.OK,
                 cancellationToken);
@@ -260,17 +261,23 @@ public sealed class PythonBridge
         {
             CadResponse commandResponse = await pending.Completion.Task
                 .WaitAsync(CommandTimeout, cancellationToken);
-            await WriteJsonAsync(response, commandResponse, HttpStatusCode.OK, cancellationToken);
+            await WriteJsonAsync(
+                response,
+                commandResponse,
+                GetHttpStatus(commandResponse),
+                cancellationToken);
         }
         catch (TimeoutException)
         {
+            pending.Cancel();
             pending.Completion.TrySetCanceled();
             await WriteJsonAsync(
                 response,
                 CadResponse.FromError(
                     payload,
                     "AUTOCAD_IDLE_TIMEOUT",
-                    "AutoCAD did not become idle within 30 seconds; the command was not executed."),
+                    "AutoCAD did not complete the command within 30 seconds. " +
+                    "Retry with the same command_id to prevent duplicate geometry."),
                 HttpStatusCode.ServiceUnavailable,
                 cancellationToken);
         }
@@ -324,13 +331,16 @@ public sealed class PythonBridge
                 }
 
                 using DocumentLock documentLock = document.LockDocument();
-                CadResponse response =
-                    string.Equals(
-                        pending.Payload.Operation,
-                        "create_line",
-                        StringComparison.OrdinalIgnoreCase)
-                        ? _drawingService.CreateLine(pending.Payload)
-                        : _readOnlyDrawingService.Execute(pending.Payload);
+                CadResponse response = pending.Payload.Operation switch
+                {
+                    "create_line" =>
+                        _drawingService.CreateLine(pending.Payload),
+                    "execute_batch" =>
+                        _batchExecutionService.Execute(
+                            pending.Payload,
+                            pending.CancellationToken),
+                    _ => _readOnlyDrawingService.Execute(pending.Payload)
+                };
                 pending.Completion.TrySetResult(response);
             }
             catch (Exception exception)
@@ -352,6 +362,28 @@ public sealed class PythonBridge
         response.ContentEncoding = Encoding.UTF8;
         response.ContentLength64 = buffer.Length;
         await response.OutputStream.WriteAsync(buffer, cancellationToken);
+    }
+
+    private static HttpStatusCode GetHttpStatus(CadResponse response)
+    {
+        if (response.Status != "error")
+        {
+            return HttpStatusCode.OK;
+        }
+
+        return response.Error?.Code switch
+        {
+            "DOCUMENT_MISMATCH" or
+            "LAYER_POLICY_ERROR" or
+            "DUPLICATE_COMMAND" => HttpStatusCode.Conflict,
+            "BATCH_LIMIT_EXCEEDED" or
+            "REQUEST_TOO_LARGE" => HttpStatusCode.RequestEntityTooLarge,
+            "BATCH_EXECUTION_FAILED" or
+            "BATCH_ROLLED_BACK" => HttpStatusCode.InternalServerError,
+            "NO_ACTIVE_DOCUMENT" or
+            "AUTOCAD_IDLE_TIMEOUT" => HttpStatusCode.ServiceUnavailable,
+            _ => HttpStatusCode.BadRequest
+        };
     }
 
     private static string? GetActiveDocumentName()
@@ -378,9 +410,15 @@ public sealed class PythonBridge
 
     private sealed class PendingCommand(CadPayload payload)
     {
+        private readonly CancellationTokenSource _cancellation = new();
+
         public CadPayload Payload { get; } = payload;
 
         public TaskCompletionSource<CadResponse> Completion { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public CancellationToken CancellationToken => _cancellation.Token;
+
+        public void Cancel() => _cancellation.Cancel();
     }
 }

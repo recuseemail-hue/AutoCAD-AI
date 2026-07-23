@@ -138,6 +138,49 @@ async def submit_command(
             command=command,
         )
 
+    if schema_version == "0.4":
+        plugin_health = await autocad_plugin_client.get_health()
+        if plugin_health is None:
+            duration_ms = (perf_counter() - started_at) * 1000
+            log_command_event(
+                "command_failed",
+                command=command,
+                status="error",
+                error_code="AUTOCAD_DISCONNECTED",
+                duration_ms=duration_ms,
+            )
+            return error_response(
+                503,
+                "AUTOCAD_DISCONNECTED",
+                "AutoCAD disconnected before the batch could be submitted.",
+                command=command,
+            )
+        supported_versions = (
+            plugin_health.get("supported_schema_versions", [])
+        )
+        if schema_version not in supported_versions:
+            duration_ms = (perf_counter() - started_at) * 1000
+            log_command_event(
+                "command_failed",
+                command=command,
+                status="error",
+                error_code="PLUGIN_SCHEMA_UNSUPPORTED",
+                duration_ms=duration_ms,
+            )
+            return error_response(
+                409,
+                "PLUGIN_SCHEMA_UNSUPPORTED",
+                "The connected AutoCAD plugin does not support "
+                f"schema_version '{schema_version}'.",
+                command=command,
+                details={
+                    "plugin_version": (
+                        plugin_health.get("plugin_version")
+                    ),
+                    "supported_schema_versions": supported_versions,
+                },
+            )
+
     try:
         plugin_result = await autocad_plugin_client.send_command(command)
         result = (

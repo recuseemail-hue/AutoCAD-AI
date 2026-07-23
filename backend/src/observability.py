@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 from typing import Any
 
 from backend.src.config import settings
+from backend.src.contracts import get_batch_counts
 
 
 COMMAND_LOGGER_NAME = "autocad_ai.commands"
@@ -37,6 +38,11 @@ def log_command_event(
     duration_ms: float | None = None,
 ) -> None:
     command = command or {}
+    entity_count: int | None = None
+    point_count: int | None = None
+    if command.get("schema_version") == "0.4":
+        entity_count, point_count = get_batch_counts(command)
+
     record = {
         "timestamp": datetime.now(UTC).isoformat(),
         "event": event,
@@ -48,6 +54,8 @@ def log_command_event(
         "operation": command.get("operation"),
         "status": status,
         "error_code": error_code,
+        "entity_count": entity_count,
+        "point_count": point_count,
         "duration_ms": round(duration_ms, 3) if duration_ms is not None else None,
     }
     command_logger.info(
