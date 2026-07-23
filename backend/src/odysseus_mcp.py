@@ -1,4 +1,4 @@
-import os
+from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -6,13 +6,10 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 
+from backend.src.config import settings
 
-BRIDGE_URL = os.getenv(
-    "AUTOCAD_AI_BRIDGE_URL",
-    "http://127.0.0.1:8000",
-).rstrip("/")
-
-BRIDGE_TIMEOUT_SECONDS = 40.0
+BRIDGE_URL = settings.bridge_url
+BRIDGE_TIMEOUT_SECONDS = settings.bridge_timeout_seconds
 
 MCP_TRANSPORT_SECURITY = TransportSecuritySettings(
     allowed_hosts=[
@@ -71,16 +68,29 @@ async def request_bridge(
 
     if response.is_error:
         detail = body.get("detail", body) if isinstance(body, dict) else body
+        structured_error = (
+            detail.get("error")
+            if isinstance(detail, dict) and isinstance(detail.get("error"), dict)
+            else None
+        )
         message = (
-            detail.get("message", str(detail))
-            if isinstance(detail, dict)
-            else str(detail)
+            structured_error.get("message", str(detail))
+            if structured_error
+            else (
+                detail.get("message", str(detail))
+                if isinstance(detail, dict)
+                else str(detail)
+            )
         )
         return {
             "status": "error",
             "http_status": response.status_code,
             "error": {
-                "code": "BRIDGE_REQUEST_FAILED",
+                "code": (
+                    structured_error.get("code", "BRIDGE_REQUEST_FAILED")
+                    if structured_error
+                    else "BRIDGE_REQUEST_FAILED"
+                ),
                 "message": message,
                 "details": detail,
             },
@@ -132,9 +142,13 @@ async def create_autocad_line(
 ) -> dict[str, Any]:
     """Create one line in AutoCAD using explicit coordinates and units."""
 
+    run_id = f"run-{uuid4()}"
     command = {
-        "schema_version": "0.1",
-        "command_id": f"odysseus-{uuid4()}",
+        "schema_version": "0.2",
+        "run_id": run_id,
+        "import_id": None,
+        "command_id": f"cmd-{uuid4()}",
+        "submitted_at": datetime.now(UTC).isoformat(),
         "application": "autocad",
         "operation": "create_line",
         "parameters": {

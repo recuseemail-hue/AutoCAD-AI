@@ -8,41 +8,31 @@ The first target workflow uses **Odysseus** as the chat interface, a local **Pyt
 
 Last updated: July 22, 2026.
 
-The project has moved beyond the original in-process mock response. Odysseus can now discover and call the project's MCP tools, and those tools can reach the live Python bridge.
+The first live drawing vertical slice is complete: Odysseus successfully
+created a native line through the MCP server, bridge, and AutoCAD plugin. Work
+on branch `Luke/PDFRead` now adds the traceable v0.2 contract required for
+reviewable PDF-to-CAD workflows.
 
 | Component | Status | Verified result |
 |---|---|---|
-| JSON command schema v0.1 | Working baseline | Valid `create_line` requests are accepted and malformed requests are rejected |
-| FastAPI bridge | Running | `GET /health` returns `status: ok` |
-| AutoCAD connection reporting | Implemented | `GET /applications` checks the plugin's `/health` endpoint |
-| Bridge-to-plugin HTTP adapter | Implemented | Commands are forwarded to the plugin's `/command` endpoint and the correlated HTTP response is returned |
+| JSON schemas v0.1 and v0.2 | Implemented | v0.1 remains compatible; v0.2 adds lifecycle identity and formal result/error contracts |
+| FastAPI bridge v0.2.0 | Implemented | Validates by schema version, normalizes results, and returns traceable structured errors |
+| AutoCAD connection reporting | Implemented | `GET /applications` reports plugin version and supported schema versions |
+| Command observability | Implemented | Privacy-conscious JSONL logs correlate run, import, and command IDs |
 | Odysseus MCP server | Working | Odysseus discovers all 3 tools through Streamable HTTP |
-| Odysseus to bridge health check | Verified | `get_bridge_health` returned that the bridge is running and healthy |
-| Odysseus to AutoCAD status check | Verified | `get_autocad_status` correctly reported that AutoCAD is not connected |
-| AutoCAD 2027 plugin | Teammate-owned, implemented proof of concept | Hosts local HTTP health and command endpoints on port `8765` |
-| Live line creation in AutoCAD | Ready for manual verification | Requires AutoCAD 2027 with the current plugin loaded |
+| AutoCAD 2027 plugin v0.2.0 | Implemented | Hosts local HTTP health and command endpoints on port `8765` |
+| Live schema-v0.1 line creation | Verified | A real native AutoCAD line was created successfully |
+| Live schema-v0.2 line creation | Pending reload check | Rebuilt DLL is ready for one final in-AutoCAD contract verification |
 
-The current verified path is:
+The verified baseline path is:
 
 ```text
 User
   -> Odysseus Agent mode
   -> AutoCAD-AI MCP server (port 8001)
   -> FastAPI bridge (port 8000)
-  -> connection-status result
-  -> Odysseus response
-```
-
-The next complete path will be:
-
-```text
-User
-  -> Odysseus Agent mode
-  -> MCP tool call
-  -> FastAPI bridge
-  -> local HTTP command (port 8765)
-  -> AutoCAD 2027 plugin
-  -> native AutoCAD operation
+  -> AutoCAD 2027 plugin (port 8765)
+  -> native AutoCAD line
   -> correlated command result
   -> Odysseus response
 ```
@@ -53,9 +43,10 @@ The Odysseus integration currently exposes:
 
 - `get_bridge_health` - confirms that the local Python bridge is available.
 - `get_autocad_status` - reports whether an AutoCAD plugin is connected.
-- `create_autocad_line` - builds a schema-v0.1 line command and submits it to the bridge.
+- `create_autocad_line` - builds a traceable schema-v0.2 line command and submits it to the bridge.
 
-The first two tools have been verified from Odysseus. The bridge now forwards `create_autocad_line` to the real plugin, but the complete operation still requires manual verification with AutoCAD 2027 open and the plugin loaded.
+All three tools have been verified on the v0.1 baseline. The rebuilt v0.2
+plugin requires one live reload check before Milestone 1 is closed.
 
 ## Local Service Addresses
 
@@ -94,16 +85,34 @@ http://host.docker.internal:8001/mcp
 
 Use **Agent mode** when calling MCP tools. The current Odysseus OpenAI integration sends agent tools through Chat Completions. `gpt-4.1` has been used as the compatible model for these tests; `gpt-5.6-sol` currently produces a reasoning-effort/tool incompatibility until Odysseus supports the appropriate Responses API path or explicitly disables reasoning effort for that request.
 
-## Immediate Next Milestone
+## Milestone 1 Configuration
 
-Complete one real, reversible AutoCAD operation:
+Defaults are centralized in `backend/src/config.py` and can be overridden with:
 
-1. Build and load the teammate-owned plugin in AutoCAD 2027.
+| Environment variable | Default |
+|---|---|
+| `AUTOCAD_AI_PLUGIN_URL` | `http://localhost:8765` |
+| `AUTOCAD_AI_PLUGIN_HEALTH_TIMEOUT_SECONDS` | `2.0` |
+| `AUTOCAD_AI_PLUGIN_COMMAND_TIMEOUT_SECONDS` | `35.0` |
+| `AUTOCAD_AI_BRIDGE_URL` | `http://127.0.0.1:8000` |
+| `AUTOCAD_AI_BRIDGE_TIMEOUT_SECONDS` | `40.0` |
+| `AUTOCAD_AI_LOG_PATH` | `backend/output/autocad-ai.jsonl` |
+| `AUTOCAD_AI_LOG_MAX_BYTES` | `5242880` |
+| `AUTOCAD_AI_LOG_BACKUP_COUNT` | `3` |
+
+The command log records lifecycle metadata, not complete geometry payloads.
+
+## Immediate Next Step
+
+Verify the newly rebuilt v0.2 contract in AutoCAD:
+
+1. Load `Plugin/AutoCadAIPlugin/dist/AutoCadAIPlugin.dll` in AutoCAD 2027.
 2. Verify `http://localhost:8765/health` directly.
 3. Verify that `get_autocad_status` reports connected.
 4. Ask Odysseus to create one line with explicit coordinates, units, and layer.
-5. Confirm that the real plugin result and object handle return to Odysseus.
-6. Verify that the created operation can be undone safely.
+5. Confirm that the result includes matching `run_id` and `command_id`,
+   bridge/plugin versions, timestamps, active document, and object handle.
+6. Undo the operation safely, then begin Milestone 2 read-only tools.
 
 ## Design Principles
 
@@ -113,7 +122,7 @@ Complete one real, reversible AutoCAD operation:
 - Destructive, ambiguous, and engineering-sensitive actions require human approval.
 - Every command should return a clear result and remain traceable.
 - Application adapters stay separate so AutoCAD, Revit, and AutoSPRINK can evolve independently.
-- The teammate-owned `Plugin/` code is not modified by backend work without coordination.
+- Plugin and bridge contract changes are coordinated and versioned together.
 
 ## Repository Layout
 
@@ -122,17 +131,21 @@ AutoCAD-AI/
 |-- backend/
 |   |-- src/
 |   |   |-- api.py
+|   |   |-- config.py
 |   |   |-- connection_manager.py
-|   |   |-- mock_backend.py
+|   |   |-- contracts.py
+|   |   |-- observability.py
 |   |   `-- odysseus_mcp.py
 |   `-- tests/
 |-- docs/
 |   |-- architecture.md
 |   `-- roadmap.md
 |-- examples/
-|-- Plugin/                  # Teammate-owned AutoCAD 2027 plugin
+|-- Plugin/                  # AutoCAD 2027 plugin
 |-- schemas/
-|   `-- v0.1/
+|   |-- v0.1/
+|   `-- v0.2/
+|-- Implementation Plan.md
 |-- README.md
 |-- requirements.txt
 `-- requirements-odysseus.txt
@@ -150,4 +163,6 @@ After the first AutoCAD vertical slice is dependable, the platform may expand to
 - supported AutoSPRINK operations and deterministic fire-protection checks;
 - multi-application coordination through the same versioned command platform.
 
-See [Architecture](docs/architecture.md) for system boundaries and [Roadmap](docs/roadmap.md) for milestones and current progress.
+See [Implementation Plan](Implementation%20Plan.md) for the PDF-to-CAD
+delivery plan, [Architecture](docs/architecture.md) for system boundaries, and
+[Roadmap](docs/roadmap.md) for project history.

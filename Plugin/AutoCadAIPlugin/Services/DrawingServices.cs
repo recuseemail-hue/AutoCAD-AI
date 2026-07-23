@@ -15,7 +15,9 @@ public sealed class DrawingService
         Document doc = Application.DocumentManager.MdiActiveDocument;
         if (doc == null)
         {
-            throw new CadRequestException("No active AutoCAD drawing is available.");
+            throw new CadRequestException(
+                "NO_ACTIVE_DOCUMENT",
+                "No active AutoCAD drawing is available.");
         }
 
         Database db = doc.Database;
@@ -68,12 +70,18 @@ public sealed class DrawingService
             transaction.Commit();
         }
 
+        bool isVersionTwo = payload.SchemaVersion == "0.2";
         return new CadResponse
         {
             SchemaVersion = payload.SchemaVersion,
+            RunId = isVersionTwo ? payload.RunId : null,
+            ImportId = isVersionTwo ? payload.ImportId : null,
             CommandId = payload.CommandId,
+            Application = isVersionTwo ? payload.Application : null,
+            Operation = isVersionTwo ? payload.Operation : null,
             Status = "success",
             Message = "Line created successfully.",
+            Error = null,
             AffectedObjects =
             [
                 new AffectedObject
@@ -90,7 +98,14 @@ public sealed class DrawingService
                 EndInDrawingUnits = [endPoint.X, endPoint.Y, endPoint.Z]
             },
             UndoToken = CreateUndoToken(payload.CommandId),
-            Warnings = warnings
+            Warnings = warnings,
+            Document = isVersionTwo
+                ? new CadDocumentInfo { Name = Path.GetFileName(doc.Name) }
+                : null,
+            ReportedPluginVersion = isVersionTwo ? CadResponse.PluginVersion : null,
+            CompletedAt = isVersionTwo
+                ? DateTimeOffset.UtcNow.ToString("O")
+                : null
         };
     }
 
@@ -101,9 +116,26 @@ public sealed class DrawingService
             throw new CadRequestException("The JSON request body is required.");
         }
 
-        if (!string.Equals(payload.SchemaVersion, "0.1", StringComparison.Ordinal))
+        if (payload.SchemaVersion is not ("0.1" or "0.2"))
         {
-            throw new CadRequestException("Unsupported schema_version. Expected '0.1'.");
+            throw new CadRequestException(
+                "UNSUPPORTED_SCHEMA_VERSION",
+                "Unsupported schema_version. Expected '0.1' or '0.2'.");
+        }
+
+        if (payload.SchemaVersion == "0.2")
+        {
+            if (string.IsNullOrWhiteSpace(payload.RunId))
+            {
+                throw new CadRequestException("run_id is required for schema v0.2.");
+            }
+
+            if (string.IsNullOrWhiteSpace(payload.SubmittedAt) ||
+                !DateTimeOffset.TryParse(payload.SubmittedAt, out _))
+            {
+                throw new CadRequestException(
+                    "submitted_at must be a valid timestamp for schema v0.2.");
+            }
         }
 
         if (string.IsNullOrWhiteSpace(payload.CommandId))
@@ -204,4 +236,18 @@ public sealed class DrawingService
     }
 }
 
-public sealed class CadRequestException(string message) : Exception(message);
+public sealed class CadRequestException : Exception
+{
+    public CadRequestException(string message)
+        : this("INVALID_COMMAND", message)
+    {
+    }
+
+    public CadRequestException(string code, string message)
+        : base(message)
+    {
+        Code = code;
+    }
+
+    public string Code { get; }
+}

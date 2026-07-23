@@ -124,7 +124,10 @@ public sealed class PythonBridge
         {
             await TryWriteJsonAsync(
                 context.Response,
-                CadResponse.Error(string.Empty, $"Bridge error: {exception.Message}"),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "PLUGIN_BRIDGE_ERROR",
+                    $"Bridge error: {exception.Message}"),
                 HttpStatusCode.InternalServerError,
                 CancellationToken.None);
         }
@@ -149,7 +152,10 @@ public sealed class PythonBridge
                 response.Headers["Allow"] = "GET";
                 await WriteJsonAsync(
                     response,
-                    CadResponse.Error(string.Empty, "Only GET is allowed for /health."),
+                    CadResponse.SystemError(
+                        string.Empty,
+                        "METHOD_NOT_ALLOWED",
+                        "Only GET is allowed for /health."),
                     HttpStatusCode.MethodNotAllowed,
                     cancellationToken);
                 return;
@@ -157,7 +163,13 @@ public sealed class PythonBridge
 
             await WriteJsonAsync(
                 response,
-                new { status = "ok", application = "autocad", schema_version = "0.1" },
+                new
+                {
+                    status = "ok",
+                    application = "autocad",
+                    plugin_version = CadResponse.PluginVersion,
+                    supported_schema_versions = new[] { "0.1", "0.2" }
+                },
                 HttpStatusCode.OK,
                 cancellationToken);
             return;
@@ -167,7 +179,10 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(string.Empty, "Route not found. Use POST /command or GET /health."),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "ROUTE_NOT_FOUND",
+                    "Route not found. Use POST /command or GET /health."),
                 HttpStatusCode.NotFound,
                 cancellationToken);
             return;
@@ -178,7 +193,10 @@ public sealed class PythonBridge
             response.Headers["Allow"] = "POST";
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(string.Empty, "Only POST is allowed for /command."),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "METHOD_NOT_ALLOWED",
+                    "Only POST is allowed for /command."),
                 HttpStatusCode.MethodNotAllowed,
                 cancellationToken);
             return;
@@ -188,7 +206,10 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(string.Empty, "The JSON request exceeds the 1 MB limit."),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "REQUEST_TOO_LARGE",
+                    "The JSON request exceeds the 1 MB limit."),
                 HttpStatusCode.RequestEntityTooLarge,
                 cancellationToken);
             return;
@@ -209,7 +230,10 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(string.Empty, $"Malformed JSON: {exception.Message}"),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "MALFORMED_JSON",
+                    $"Malformed JSON: {exception.Message}"),
                 HttpStatusCode.BadRequest,
                 cancellationToken);
             return;
@@ -219,7 +243,10 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(string.Empty, "The JSON request body is required."),
+                CadResponse.SystemError(
+                    string.Empty,
+                    "REQUEST_BODY_REQUIRED",
+                    "The JSON request body is required."),
                 HttpStatusCode.BadRequest,
                 cancellationToken);
             return;
@@ -239,8 +266,9 @@ public sealed class PythonBridge
             pending.Completion.TrySetCanceled();
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(
-                    payload.CommandId,
+                CadResponse.FromError(
+                    payload,
+                    "AUTOCAD_IDLE_TIMEOUT",
                     "AutoCAD did not become idle within 30 seconds; the command was not executed."),
                 HttpStatusCode.ServiceUnavailable,
                 cancellationToken);
@@ -249,7 +277,11 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(payload.CommandId, exception.Message),
+                CadResponse.FromError(
+                    payload,
+                    exception.Code,
+                    exception.Message,
+                    GetActiveDocumentName()),
                 HttpStatusCode.BadRequest,
                 cancellationToken);
         }
@@ -257,7 +289,11 @@ public sealed class PythonBridge
         {
             await WriteJsonAsync(
                 response,
-                CadResponse.Error(payload.CommandId, $"AutoCAD command failed: {exception.Message}"),
+                CadResponse.FromError(
+                    payload,
+                    "AUTOCAD_EXECUTION_ERROR",
+                    $"AutoCAD command failed: {exception.Message}",
+                    GetActiveDocumentName()),
                 HttpStatusCode.InternalServerError,
                 cancellationToken);
         }
@@ -281,7 +317,9 @@ public sealed class PythonBridge
                 Document document = Application.DocumentManager.MdiActiveDocument;
                 if (document == null)
                 {
-                    throw new CadRequestException("No active AutoCAD drawing is available.");
+                    throw new CadRequestException(
+                        "NO_ACTIVE_DOCUMENT",
+                        "No active AutoCAD drawing is available.");
                 }
 
                 using DocumentLock documentLock = document.LockDocument();
@@ -307,6 +345,12 @@ public sealed class PythonBridge
         response.ContentEncoding = Encoding.UTF8;
         response.ContentLength64 = buffer.Length;
         await response.OutputStream.WriteAsync(buffer, cancellationToken);
+    }
+
+    private static string? GetActiveDocumentName()
+    {
+        Document? document = Application.DocumentManager.MdiActiveDocument;
+        return document == null ? null : Path.GetFileName(document.Name);
     }
 
     private static async Task TryWriteJsonAsync<T>(

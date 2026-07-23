@@ -1,4 +1,6 @@
 import copy
+import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,7 +17,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 
 from backend.src import api  # noqa: E402
+from backend.src.config import BRIDGE_VERSION  # noqa: E402
 from backend.src.connection_manager import AutoCADPluginHTTPError  # noqa: E402
+from backend.src.contracts import validate_result  # noqa: E402
+from backend.src.observability import COMMAND_LOGGER_NAME  # noqa: E402
 
 
 client = TestClient(api.app)
@@ -66,6 +71,53 @@ SUCCESSFUL_PLUGIN_RESULT = {
     "warnings": [],
 }
 
+VALID_V02_CREATE_LINE_COMMAND = {
+    "schema_version": "0.2",
+    "run_id": "run-test-002",
+    "import_id": None,
+    "command_id": "cmd-test-002",
+    "submitted_at": "2026-07-22T12:00:00Z",
+    "application": "autocad",
+    "operation": "create_line",
+    "parameters": {
+        "start": {"x": 0, "y": 0, "z": 0},
+        "end": {"x": 120, "y": 0, "z": 0},
+        "layer": "AI-TEST",
+        "create_layer_if_missing": True,
+    },
+    "units": "inches",
+    "coordinate_system": "world",
+    "requires_approval": False,
+}
+
+SUCCESSFUL_V02_PLUGIN_RESULT = {
+    "schema_version": "0.2",
+    "run_id": "run-test-002",
+    "import_id": None,
+    "command_id": "cmd-test-002",
+    "application": "autocad",
+    "operation": "create_line",
+    "status": "success",
+    "message": "Line created successfully.",
+    "affected_objects": [
+        {
+            "object_type": "LINE",
+            "object_id": "3BC",
+            "action": "created",
+        }
+    ],
+    "data": {
+        "layer": "AI-TEST",
+        "start_in_drawing_units": [0.0, 0.0, 0.0],
+        "end_in_drawing_units": [120.0, 0.0, 0.0],
+    },
+    "undo_token": "ai-action-test-002",
+    "warnings": [],
+    "document": {"name": "Drawing1.dwg"},
+    "plugin_version": "0.2.0",
+    "completed_at": "2026-07-22T12:00:02Z",
+}
+
 
 def set_plugin_connection(
     monkeypatch: pytest.MonkeyPatch,
@@ -88,18 +140,37 @@ def test_health_check() -> None:
     assert response.json() == {
         "status": "ok",
         "service": "AutoCAD-AI bridge",
+        "version": BRIDGE_VERSION,
+        "supported_schema_versions": ["0.1", "0.2"],
     }
 
 
 def test_application_status_reports_plugin_health(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    set_plugin_connection(monkeypatch, connected=True)
+    async def fake_get_health() -> dict[str, Any]:
+        return {
+            "status": "ok",
+            "application": "autocad",
+            "plugin_version": "0.2.0",
+            "supported_schema_versions": ["0.1", "0.2"],
+        }
 
+    monkeypatch.setattr(
+        api.autocad_plugin_client,
+        "get_health",
+        fake_get_health,
+    )
     response = client.get("/applications")
 
     assert response.status_code == 200
-    assert response.json() == {"autocad": {"connected": True}}
+    assert response.json() == {
+        "autocad": {
+            "connected": True,
+            "plugin_version": "0.2.0",
+            "supported_schema_versions": ["0.1", "0.2"],
+        }
+    }
 
 
 def test_valid_create_line_command_returns_real_plugin_result(
@@ -123,6 +194,39 @@ def test_valid_create_line_command_returns_real_plugin_result(
     assert response.json() == SUCCESSFUL_PLUGIN_RESULT
 
 
+def test_v02_command_returns_schema_valid_traceable_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_plugin_connection(monkeypatch, connected=True)
+
+    async def fake_send_command(command: dict[str, Any]) -> dict[str, Any]:
+        assert command == VALID_V02_CREATE_LINE_COMMAND
+        return SUCCESSFUL_V02_PLUGIN_RESULT
+
+    monkeypatch.setattr(
+        api.autocad_plugin_client,
+        "send_command",
+        fake_send_command,
+    )
+
+    response = client.post(
+        "/commands",
+        json=VALID_V02_CREATE_LINE_COMMAND,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    validate_result(body)
+    assert body["run_id"] == "run-test-002"
+    assert body["command_id"] == "cmd-test-002"
+    assert body["document"]["name"] == "Drawing1.dwg"
+    assert body["versions"] == {
+        "bridge": BRIDGE_VERSION,
+        "plugin": "0.2.0",
+    }
+    assert body["timestamps"]["submitted_at"] == "2026-07-22T12:00:00Z"
+
+
 def test_disconnected_plugin_returns_503(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -132,6 +236,24 @@ def test_disconnected_plugin_returns_503(
 
     assert response.status_code == 503
     assert response.json()["detail"] == "AutoCAD is not connected."
+
+
+def test_disconnected_v02_command_returns_structured_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_plugin_connection(monkeypatch, connected=False)
+
+    response = client.post(
+        "/commands",
+        json=VALID_V02_CREATE_LINE_COMMAND,
+    )
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["schema_version"] == "0.2"
+    assert body["run_id"] == "run-test-002"
+    assert body["command_id"] == "cmd-test-002"
+    assert body["error"]["code"] == "AUTOCAD_DISCONNECTED"
 
 
 def test_plugin_error_status_and_body_are_preserved(
@@ -160,6 +282,54 @@ def test_plugin_error_status_and_body_are_preserved(
 
     assert response.status_code == 400
     assert response.json()["detail"] == plugin_error
+
+
+def test_v02_plugin_error_is_normalized_and_traceable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_plugin_connection(monkeypatch, connected=True)
+    plugin_error = {
+        "schema_version": "0.2",
+        "run_id": "run-test-002",
+        "command_id": "cmd-test-002",
+        "application": "autocad",
+        "operation": "create_line",
+        "status": "error",
+        "message": "The requested layer is unavailable.",
+        "error": {
+            "code": "INVALID_COMMAND",
+            "message": "The requested layer is unavailable.",
+            "details": None,
+        },
+        "affected_objects": [],
+        "data": None,
+        "undo_token": None,
+        "warnings": [],
+        "document": {"name": "Drawing1.dwg"},
+        "plugin_version": "0.2.0",
+        "completed_at": "2026-07-22T12:00:02Z",
+    }
+
+    async def fake_send_command(command: dict[str, Any]) -> dict[str, Any]:
+        raise AutoCADPluginHTTPError(400, plugin_error)
+
+    monkeypatch.setattr(
+        api.autocad_plugin_client,
+        "send_command",
+        fake_send_command,
+    )
+
+    response = client.post(
+        "/commands",
+        json=VALID_V02_CREATE_LINE_COMMAND,
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    validate_result(body)
+    assert body["run_id"] == "run-test-002"
+    assert body["error"]["code"] == "INVALID_COMMAND"
+    assert body["versions"]["plugin"] == "0.2.0"
 
 
 def test_plugin_timeout_returns_504(
@@ -211,3 +381,41 @@ def test_units_unsupported_by_plugin_are_rejected_by_schema() -> None:
 
     assert response.status_code == 422
     assert "drawing_units" in response.json()["detail"]
+
+
+def test_command_log_contains_ids_but_not_geometry(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    set_plugin_connection(monkeypatch, connected=True)
+
+    async def fake_send_command(command: dict[str, Any]) -> dict[str, Any]:
+        return SUCCESSFUL_V02_PLUGIN_RESULT
+
+    monkeypatch.setattr(
+        api.autocad_plugin_client,
+        "send_command",
+        fake_send_command,
+    )
+    caplog.set_level(logging.INFO, logger=COMMAND_LOGGER_NAME)
+
+    response = client.post(
+        "/commands",
+        json=VALID_V02_CREATE_LINE_COMMAND,
+    )
+
+    assert response.status_code == 200
+    records = [
+        json.loads(record.message)
+        for record in caplog.records
+        if record.name == COMMAND_LOGGER_NAME
+    ]
+    assert any(record["event"] == "command_accepted" for record in records)
+    completed = next(
+        record
+        for record in records
+        if record["event"] == "command_completed"
+    )
+    assert completed["run_id"] == "run-test-002"
+    assert completed["command_id"] == "cmd-test-002"
+    assert "parameters" not in completed

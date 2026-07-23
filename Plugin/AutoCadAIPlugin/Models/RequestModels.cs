@@ -5,7 +5,10 @@ namespace AutoCadAIPlugin.Models;
 public class CadPayload
 {
     [JsonPropertyName("schema_version")] public string SchemaVersion { get; set; } = string.Empty;
+    [JsonPropertyName("run_id")] public string? RunId { get; set; }
+    [JsonPropertyName("import_id")] public string? ImportId { get; set; }
     [JsonPropertyName("command_id")] public string CommandId { get; set; } = string.Empty;
+    [JsonPropertyName("submitted_at")] public string? SubmittedAt { get; set; }
     [JsonPropertyName("application")] public string Application { get; set; } = string.Empty;
     [JsonPropertyName("operation")] public string Operation { get; set; } = string.Empty;
     [JsonPropertyName("parameters")] public LineParams Parameters { get; set; } = new();

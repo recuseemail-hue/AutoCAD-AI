@@ -1,0 +1,45 @@
+{
+  "schema_version": "0.2",
+  "run_id": "run-example-001",
+  "import_id": null,
+  "command_id": "cmd-example-001",
+  "application": "autocad",
+  "operation": "create_line",
+  "status": "success",
+  "message": "Line created successfully.",
+  "error": null,
+  "affected_objects": [
+    {
+      "object_type": "LINE",
+      "object_id": "2AF",
+      "action": "created"
+    }
+  ],
+  "data": {
+    "layer": "AI-TEST",
+    "start_in_drawing_units": [
+      0,
+      0,
+      0
+    ],
+    "end_in_drawing_units": [
+      120,
+      0,
+      0
+    ]
+  },
+  "undo_token": "ai-action-example-001",
+  "warnings": [],
+  "document": {
+    "name": "Drawing1.dwg"
+  },
+  "versions": {
+    "bridge": "0.2.0",
+    "plugin": "0.2.0"
+  },
+  "timestamps": {
+    "submitted_at": "2026-07-22T12:00:00Z",
+    "bridge_received_at": "2026-07-22T12:00:01Z",
+    "completed_at": "2026-07-22T12:00:02Z"
+  }
+}

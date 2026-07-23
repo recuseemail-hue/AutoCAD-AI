@@ -162,7 +162,7 @@
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
-    "version": "1.0.0",
+    "version": "0.2.0",
     "restore": {
       "projectUniqueName": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
       "projectName": "AutoCadAIPlugin",
@@ -519,13 +519,5 @@
         }
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1900",
-      "level": "Warning",
-      "warningLevel": 1,
-      "message": "Error occurred while getting package vulnerability data: The SSL connection could not be established, see inner exception."
-    }
-  ]
+  }
 }

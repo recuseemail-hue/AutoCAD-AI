@@ -17,6 +17,13 @@ COMMAND = {
     "operation": "create_line",
 }
 
+V02_COMMAND = {
+    **COMMAND,
+    "schema_version": "0.2",
+    "run_id": "run-001",
+    "import_id": None,
+}
+
 
 @pytest.mark.anyio
 async def test_health_check_detects_loaded_plugin() -> None:
@@ -28,13 +35,17 @@ async def test_health_check_detects_loaded_plugin() -> None:
             json={
                 "status": "ok",
                 "application": "autocad",
-                "schema_version": "0.1",
+                "plugin_version": "0.2.0",
+                "supported_schema_versions": ["0.1", "0.2"],
             },
         )
 
     plugin = AutoCADPluginClient(transport=httpx.MockTransport(handler))
 
     assert await plugin.is_connected() is True
+    health = await plugin.get_health()
+    assert health is not None
+    assert health["plugin_version"] == "0.2.0"
 
 
 @pytest.mark.anyio
@@ -102,6 +113,35 @@ async def test_mismatched_command_result_is_rejected() -> None:
 
     with pytest.raises(ValueError, match="command_id did not match"):
         await plugin.send_command(COMMAND)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("run_id", "different-run"),
+        ("import_id", "different-import"),
+    ],
+)
+async def test_mismatched_v02_lifecycle_identity_is_rejected(
+    field: str,
+    value: str,
+) -> None:
+    result = {
+        "command_id": V02_COMMAND["command_id"],
+        "run_id": V02_COMMAND["run_id"],
+        "import_id": V02_COMMAND["import_id"],
+        "status": "success",
+    }
+    result[field] = value
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=result)
+
+    plugin = AutoCADPluginClient(transport=httpx.MockTransport(handler))
+
+    with pytest.raises(ValueError, match=rf"{field} did not match"):
+        await plugin.send_command(V02_COMMAND)
 
 
 @pytest.mark.anyio

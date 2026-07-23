@@ -1,16 +1,12 @@
-import os
 from typing import Any
 
 import httpx
 
+from backend.src.config import settings
 
-PLUGIN_URL = os.getenv(
-    "AUTOCAD_AI_PLUGIN_URL",
-    "http://localhost:8765",
-).rstrip("/")
-
-PLUGIN_HEALTH_TIMEOUT_SECONDS = 2.0
-PLUGIN_COMMAND_TIMEOUT_SECONDS = 35.0
+PLUGIN_URL = settings.plugin_url
+PLUGIN_HEALTH_TIMEOUT_SECONDS = settings.plugin_health_timeout_seconds
+PLUGIN_COMMAND_TIMEOUT_SECONDS = settings.plugin_command_timeout_seconds
 
 
 class AutoCADPluginHTTPError(Exception):
@@ -37,9 +33,8 @@ class AutoCADPluginClient:
         self.base_url = base_url.rstrip("/")
         self.transport = transport
 
-    async def is_connected(self) -> bool:
-        """Return true only when the plugin responds with its expected health payload."""
-
+    async def get_health(self) -> dict[str, Any] | None:
+        """Return the expected plugin health payload, or none when unavailable."""
         try:
             async with httpx.AsyncClient(
                 base_url=self.base_url,
@@ -50,13 +45,21 @@ class AutoCADPluginClient:
                 response.raise_for_status()
                 body = response.json()
         except (httpx.HTTPError, ValueError):
-            return False
+            return None
 
-        return (
+        if (
             isinstance(body, dict)
             and body.get("status") == "ok"
             and body.get("application") == "autocad"
-        )
+        ):
+            return body
+
+        return None
+
+    async def is_connected(self) -> bool:
+        """Return true only when the plugin responds with its expected health payload."""
+
+        return await self.get_health() is not None
 
     async def send_command(self, command: dict[str, Any]) -> dict[str, Any]:
         """Send one validated command and return the plugin's correlated result."""
@@ -85,14 +88,22 @@ class AutoCADPluginClient:
         if not isinstance(body, dict):
             raise ValueError("The AutoCAD plugin response was not a JSON object.")
 
-        if response.is_error:
-            raise AutoCADPluginHTTPError(response.status_code, body)
-
         expected_command_id = command.get("command_id")
         if body.get("command_id") != expected_command_id:
             raise ValueError(
                 "The AutoCAD plugin response command_id did not match the request."
             )
+
+        if command.get("schema_version") == "0.2":
+            for identity_field in ("run_id", "import_id"):
+                if body.get(identity_field) != command.get(identity_field):
+                    raise ValueError(
+                        "The AutoCAD plugin response "
+                        f"{identity_field} did not match the request."
+                    )
+
+        if response.is_error:
+            raise AutoCADPluginHTTPError(response.status_code, body)
 
         return body
 

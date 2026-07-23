@@ -51,14 +51,18 @@ public sealed class CadCommands
         }
         catch (JsonException exception)
         {
-            CadResponse response = CadResponse.Error(
+            CadResponse response = CadResponse.SystemError(
                 string.Empty,
+                "MALFORMED_JSON",
                 $"Malformed JSON: {exception.Message}");
             editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
         catch (System.Exception exception)
         {
-            CadResponse response = CadResponse.Error(string.Empty, exception.Message);
+            CadResponse response = CadResponse.SystemError(
+                string.Empty,
+                "AUTOCAD_COMMAND_ERROR",
+                exception.Message);
             editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
     }

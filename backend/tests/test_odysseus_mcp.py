@@ -84,6 +84,11 @@ async def test_create_line_requires_and_forwards_supported_units(
         assert method == "POST"
         assert path == "/commands"
         assert payload is not None
+        assert payload["schema_version"] == "0.2"
+        assert payload["run_id"].startswith("run-")
+        assert payload["command_id"].startswith("cmd-")
+        assert payload["import_id"] is None
+        assert payload["submitted_at"]
         assert payload["units"] == "centimeters"
         return {
             "command_id": payload["command_id"],

@@ -4,17 +4,39 @@ namespace AutoCadAIPlugin.Models;
 
 public sealed class CadResponse
 {
+    public const string PluginVersion = "0.2.0";
+
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; init; } = "0.1";
 
+    [JsonPropertyName("run_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RunId { get; init; }
+
+    [JsonPropertyName("import_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ImportId { get; init; }
+
     [JsonPropertyName("command_id")]
     public string CommandId { get; init; } = string.Empty;
+
+    [JsonPropertyName("application")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Application { get; init; }
+
+    [JsonPropertyName("operation")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Operation { get; init; }
 
     [JsonPropertyName("status")]
     public string Status { get; init; } = string.Empty;
 
     [JsonPropertyName("message")]
     public string Message { get; init; } = string.Empty;
+
+    [JsonPropertyName("error")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CadError? Error { get; init; }
 
     [JsonPropertyName("affected_objects")]
     public IReadOnlyList<AffectedObject> AffectedObjects { get; init; } = [];
@@ -28,13 +50,92 @@ public sealed class CadResponse
     [JsonPropertyName("warnings")]
     public IReadOnlyList<string> Warnings { get; init; } = [];
 
-    public static CadResponse Error(string commandId, string message, params string[] warnings) => new()
+    [JsonPropertyName("document")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CadDocumentInfo? Document { get; init; }
+
+    [JsonPropertyName("plugin_version")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ReportedPluginVersion { get; init; }
+
+    [JsonPropertyName("completed_at")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? CompletedAt { get; init; }
+
+    public static CadResponse FromError(
+        CadPayload payload,
+        string code,
+        string message,
+        string? documentName = null,
+        params string[] warnings)
     {
-        CommandId = commandId,
-        Status = "error",
-        Message = message,
-        Warnings = warnings
-    };
+        bool isVersionTwo = payload.SchemaVersion == "0.2";
+        return new CadResponse
+        {
+            SchemaVersion = payload.SchemaVersion,
+            RunId = isVersionTwo ? payload.RunId : null,
+            ImportId = isVersionTwo ? payload.ImportId : null,
+            CommandId = payload.CommandId,
+            Application = isVersionTwo ? payload.Application : null,
+            Operation = isVersionTwo ? payload.Operation : null,
+            Status = "error",
+            Message = message,
+            Error = isVersionTwo
+                ? new CadError
+                {
+                    Code = code,
+                    Message = message,
+                    Details = null
+                }
+                : null,
+            Document = isVersionTwo && !string.IsNullOrWhiteSpace(documentName)
+                ? new CadDocumentInfo { Name = documentName }
+                : null,
+            ReportedPluginVersion = isVersionTwo ? PluginVersion : null,
+            CompletedAt = isVersionTwo
+                ? DateTimeOffset.UtcNow.ToString("O")
+                : null,
+            Warnings = warnings
+        };
+    }
+
+    public static CadResponse SystemError(
+        string commandId,
+        string code,
+        string message,
+        params string[] warnings) => new()
+        {
+            CommandId = commandId,
+            Status = "error",
+            Message = message,
+            Error = new CadError
+            {
+                Code = code,
+                Message = message,
+                Details = null
+            },
+            ReportedPluginVersion = PluginVersion,
+            CompletedAt = DateTimeOffset.UtcNow.ToString("O"),
+            Warnings = warnings
+        };
+}
+
+public sealed class CadError
+{
+    [JsonPropertyName("code")]
+    public string Code { get; init; } = string.Empty;
+
+    [JsonPropertyName("message")]
+    public string Message { get; init; } = string.Empty;
+
+    [JsonPropertyName("details")]
+    public object? Details { get; init; }
+}
+
+public sealed class CadDocumentInfo
+{
+    [JsonPropertyName("name")]
+    public string Name { get; init; } = string.Empty;
 }
 
 public sealed class AffectedObject

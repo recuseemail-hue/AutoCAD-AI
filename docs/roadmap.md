@@ -11,11 +11,14 @@ Last updated: July 22, 2026.
 
 ## Current Milestone
 
-The project is building its first real vertical slice:
+The first real vertical slice is complete:
 
 > A user asks Odysseus to create one line; the request travels through MCP and the Python bridge to the AutoCAD 2027 plugin; AutoCAD creates the line; the actual result returns to Odysseus; and the operation can be undone safely.
 
-The Odysseus-to-bridge portion is working, and the bridge now matches the plugin's local HTTP interface. The complete line-creation path still needs manual verification with AutoCAD 2027 and the plugin loaded.
+The native line was created successfully through the full Odysseus-to-AutoCAD
+path. Milestone 1 of the PDF-to-CAD plan now adds v0.2 lifecycle contracts and
+observability while preserving that v0.1 baseline. See
+`Implementation Plan.md` for the authoritative forward plan.
 
 ## Progress Summary
 
@@ -23,6 +26,7 @@ The Odysseus-to-bridge portion is working, and the bridge now matches the plugin
 |---|---|
 | Repository and Python environment | Complete |
 | Command schema v0.1 for `create_line` | Complete baseline |
+| Command, result, and error schemas v0.2 | Implemented; live reload check pending |
 | FastAPI health and command validation | Complete baseline |
 | AutoCAD connection-status endpoint | Complete |
 | HTTP adapter for AutoCAD plugin | Complete baseline |
@@ -32,9 +36,10 @@ The Odysseus-to-bridge portion is working, and the bridge now matches the plugin
 | Odysseus AutoCAD-status tool call | Complete |
 | Command-result correlation | Complete through HTTP request/response |
 | Backend test alignment after mock removal | Complete |
-| AutoCAD 2027 plugin connection | Ready for manual verification |
-| Real AutoCAD line creation | Ready for manual verification |
-| Undo of an AI operation | Waiting |
+| Structured lifecycle logging | Implemented |
+| AutoCAD 2027 plugin connection | Complete baseline |
+| Real AutoCAD line creation | Complete baseline |
+| Rebuilt v0.2 DLL | Complete; live contract check pending |
 
 ## Phase 1 - Foundation
 
@@ -47,7 +52,7 @@ Status: **Complete**
 - [x] Add `.gitignore` rules for local environments and caches.
 - [x] Create the backend, tests, schema, examples, and documentation areas.
 - [x] Establish AutoCAD 2027 as the first target application.
-- [x] Separate teammate-owned plugin work from backend work.
+- [x] Separate plugin internals from the shared network contract.
 
 ## Phase 2 - Structured Command Contract
 
@@ -59,10 +64,10 @@ Status: **Complete baseline**
 - [x] Add valid request and success-response examples.
 - [x] Verify valid JSON loading.
 - [x] Verify that a command missing its endpoint is rejected.
-- [ ] Create a formal response schema.
-- [ ] Define response statuses and error codes.
-- [ ] Define plugin registration and version compatibility messages.
-- [ ] Create a formal schema for plugin command results.
+- [x] Create a formal v0.2 response schema.
+- [x] Define v0.2 response statuses and stable error codes.
+- [x] Report bridge/plugin versions and supported schema versions.
+- [x] Create a formal v0.2 schema for plugin command results.
 
 ## Phase 3 - Live Python Bridge
 
@@ -89,7 +94,7 @@ Implemented HTTP result handling:
 - [x] Return `503` when the plugin cannot be reached.
 - [x] Reject malformed or non-JSON plugin responses.
 - [x] Preserve structured plugin HTTP errors.
-- [ ] Add structured bridge logging without exposing secrets.
+- [x] Add structured bridge logging without complete drawing payloads.
 - [ ] Decide whether local authentication is required before broader use.
 
 ## Phase 4 - Odysseus MCP Integration
@@ -107,7 +112,8 @@ Status: **Complete baseline**
 - [x] Verify the bridge health tool from an Odysseus conversation.
 - [x] Verify the AutoCAD status tool from an Odysseus conversation.
 - [x] Confirm that the disconnected result accurately reflects bridge state.
-- [ ] Verify `create_autocad_line` against the real plugin.
+- [x] Verify `create_autocad_line` against the real plugin on v0.1.
+- [ ] Reload the rebuilt plugin and verify the complete v0.2 result envelope.
 - [ ] Add tool descriptions and approval behavior for future operations.
 - [ ] Add concise user-facing interpretations for common bridge errors.
 
@@ -140,21 +146,23 @@ Required updates:
 
 ## Phase 6 - AutoCAD 2027 Plugin Connection
 
-Status: **Ready for manual verification**
+Status: **Complete baseline; v0.2 reload pending**
 
-The `Plugin/` directory is teammate-owned and is not modified by backend work.
+The plugin owns AutoCAD-native execution. Milestone 1 updates both the plugin
+and bridge because the user explicitly authorized a coordinated v0.2 contract
+change.
 
 Shared integration requirements:
 
-- [ ] Build and load the plugin in AutoCAD 2027.
+- [x] Build and load the baseline plugin in AutoCAD 2027.
 - [x] Host `GET /health` and `POST /command` on `http://localhost:8765`.
-- [ ] Report a stable plugin/application identity and version.
-- [ ] Receive a schema-v0.1 `create_line` command.
-- [ ] Marshal execution into a valid AutoCAD context.
-- [ ] Validate drawing state, units, layer, and geometry independently.
-- [ ] Execute the operation in a native AutoCAD transaction.
-- [ ] Return a structured result with the original `command_id`.
-- [ ] Include the active document and affected object handle.
+- [x] Report a stable plugin/application identity and version.
+- [x] Receive schema-v0.1 and schema-v0.2 `create_line` commands.
+- [x] Marshal execution into a valid AutoCAD context.
+- [x] Validate drawing state, units, layer, and geometry independently.
+- [x] Execute the operation in a native AutoCAD transaction.
+- [x] Return a structured result with correlated lifecycle IDs.
+- [x] Include the active document and affected object handle.
 - [ ] Group the operation so the user can undo it safely.
 - [x] Start the HTTP listener when the plugin loads.
 
@@ -164,16 +172,16 @@ Completion criteria:
 
 ## Phase 7 - First Real Drawing Operation
 
-Status: **Waiting**
+Status: **Complete baseline**
 
-- [ ] Open a disposable AutoCAD test drawing.
-- [ ] Confirm drawing units.
-- [ ] Ask Odysseus to create one explicitly located line.
-- [ ] Validate the command at the MCP and bridge boundaries.
-- [ ] Create or select the requested layer safely.
-- [ ] Create the native AutoCAD line.
-- [ ] Return the actual document, layer, and object handle.
-- [ ] Display the result in Odysseus.
+- [x] Open a disposable AutoCAD test drawing.
+- [x] Confirm drawing units.
+- [x] Ask Odysseus to create one explicitly located line.
+- [x] Validate the command at the MCP and bridge boundaries.
+- [x] Create or select the requested layer safely.
+- [x] Create the native AutoCAD line.
+- [x] Return the actual document, layer, and object handle.
+- [x] Display the result in Odysseus.
 - [ ] Undo the complete AI action once.
 - [ ] Repeat the test after restarting the bridge and plugin.
 
@@ -277,19 +285,19 @@ Status: **Planned**
 - [ ] Plugin compatibility matrix.
 - [ ] User and developer documentation.
 
-## Next Work While Waiting for the Plugin
+## Next Work
 
-The next backend task does not require changing teammate-owned code:
+Close the Milestone 1 live gate, then begin the read-only toolkit:
 
-1. Load the current plugin in AutoCAD 2027 and open a disposable drawing.
-2. Verify plugin health through the bridge and Odysseus.
-3. Submit one explicit line command with supported units.
-4. Confirm that the returned handle identifies the created native line.
-5. Test timeout and malformed-response behavior at the API level.
+1. Load the rebuilt v0.2 DLL in AutoCAD 2027.
+2. Submit one explicit line command.
+3. Confirm all lifecycle, version, timestamp, document, and handle fields.
+4. Undo the operation.
+5. Implement Milestone 2 from `Implementation Plan.md`.
 
 ## Explicitly Deferred
 
-Until the first live line is created and returned successfully, do not prioritize:
+Until the v0.2 contract is verified live, do not prioritize:
 
 - autonomous full-drawing generation;
 - hydraulic calculations;

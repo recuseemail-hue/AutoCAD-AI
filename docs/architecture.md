@@ -11,7 +11,7 @@ The first implementation uses:
 - **Odysseus** as the user-facing AI chat interface;
 - an **MCP server** that exposes narrow AutoCAD-AI tools to Odysseus;
 - a local **Python/FastAPI bridge** that validates and routes commands;
-- a teammate-owned **AutoCAD 2027 plugin** that executes native AutoCAD operations.
+- an **AutoCAD 2027 plugin** that executes native AutoCAD operations.
 
 The platform is intended to support Revit, AutoSPRINK, image and PDF interpretation, and 3D workflows later. Those capabilities must reuse the shared command and safety architecture instead of embedding application-specific behavior into the AI prompt.
 
@@ -36,7 +36,10 @@ AutoCAD 2027 plugin
 AutoCAD drawing database
 ```
 
-The portion through the FastAPI bridge has been verified from Odysseus. The bridge now checks the plugin's HTTP health endpoint and forwards commands to its HTTP command endpoint. Live drawing execution remains to be manually verified with AutoCAD 2027 and the plugin loaded.
+The complete v0.1 path has been verified with a native line created in
+AutoCAD. The v0.2 implementation preserves that contract while adding
+traceable run identity, formal results and errors, version reporting, document
+identity, timestamps, and privacy-conscious lifecycle logs.
 
 ## 3. Component Responsibilities
 
@@ -75,7 +78,7 @@ Current tools:
 |---|---|---|
 | `get_bridge_health` | `GET /health` | Verified from Odysseus |
 | `get_autocad_status` | `GET /applications` | Verified from Odysseus |
-| `create_autocad_line` | `POST /commands` | HTTP forwarding implemented; live AutoCAD execution not yet verified |
+| `create_autocad_line` | `POST /commands` | Live v0.1 path verified; now emits v0.2 |
 
 The server returns structured errors when the bridge cannot be reached or returns an unsuccessful HTTP response.
 
@@ -84,7 +87,10 @@ The server returns structured errors when the bridge cannot be reached or return
 Files:
 
 - `backend/src/api.py`
+- `backend/src/config.py`
 - `backend/src/connection_manager.py`
+- `backend/src/contracts.py`
+- `backend/src/observability.py`
 
 The bridge is the application broker between AI-facing tools and application plugins.
 
@@ -92,32 +98,40 @@ Current endpoints:
 
 | Endpoint | Purpose | Current behavior |
 |---|---|---|
-| `GET /health` | Service health | Returns that the bridge is running |
-| `GET /applications` | Application status | Calls `GET http://localhost:8765/health` |
-| `POST /commands` | Submit a validated command | Calls `POST http://localhost:8765/command` and returns the real plugin response |
+| `GET /health` | Service health | Reports bridge version and supported schemas |
+| `GET /applications` | Application status | Reports plugin health, version, and supported schemas |
+| `POST /commands` | Submit a validated command | Validates v0.1/v0.2, forwards, correlates, normalizes, and logs the result |
 
-The bridge currently validates incoming commands using schema v0.1. It no longer returns a successful mock result when AutoCAD is unavailable.
+The bridge selects a contract by `schema_version`. Schema v0.1 remains
+supported for compatibility; schema v0.2 is the current MCP contract.
 
 HTTP request/response semantics provide command-result correlation. `connection_manager.py` checks that a successful plugin response contains the same `command_id`, maps connection failures to `503`, maps timeouts to `504`, rejects malformed responses, and preserves structured plugin errors.
 
-### 3.4 Command Schema
+### 3.4 Network Contracts
 
-File: `schemas/v0.1/command.schema.json`
+Files:
 
-The command schema is the shared contract between Odysseus tools, the bridge, and application plugins.
+- `schemas/v0.1/command.schema.json`
+- `schemas/v0.2/command.schema.json`
+- `schemas/v0.2/result.schema.json`
+- `schemas/v0.2/error.schema.json`
 
-The current v0.1 contract supports one operation:
+These schemas are the shared contract between Odysseus tools, the bridge, and
+application plugins. Both command versions currently support one operation:
 
 ```text
 create_line
 ```
 
-Example:
+The v0.2 request adds lifecycle identity:
 
 ```json
 {
-  "schema_version": "0.1",
+  "schema_version": "0.2",
+  "run_id": "run-001",
+  "import_id": null,
   "command_id": "cmd-001",
+  "submitted_at": "2026-07-22T18:30:00Z",
   "application": "autocad",
   "operation": "create_line",
   "parameters": {
@@ -132,13 +146,17 @@ Example:
 }
 ```
 
-The schema requires explicit coordinates, units, layer behavior, application target, operation name, and command identity. Unsupported or incomplete commands must be rejected rather than guessed.
+The schema requires explicit coordinates, units, layer behavior, application
+target, operation name, and command identity. Unsupported or incomplete
+commands are rejected rather than guessed.
 
 ### 3.5 AutoCAD 2027 Plugin
 
 Directory: `Plugin/`
 
-The AutoCAD plugin is maintained by the user's teammate and is outside the backend work boundary.
+The AutoCAD plugin owns native execution. Its internal AutoCAD implementation
+stays isolated from the backend, while its network contract is coordinated
+with the bridge.
 
 Current responsibilities:
 
@@ -167,51 +185,70 @@ This path is working:
 5. The result returns through MCP to Odysseus.
 ```
 
-### 4.2 Target write lifecycle
+### 4.2 Write lifecycle
 
-This path is not complete yet:
+This path is implemented:
 
 ```text
 1. User asks Odysseus to create a line.
 2. Odysseus calls create_autocad_line with explicit values.
-3. The MCP server builds a schema-v0.1 command.
+3. The MCP server builds a schema-v0.2 command with lifecycle IDs.
 4. The bridge validates the command.
 5. The bridge checks the plugin's health endpoint.
 6. The bridge posts the command to the AutoCAD plugin over local HTTP.
 7. The plugin queues the work for AutoCAD's UI thread, validates it, and executes it.
-8. The plugin returns a structured result containing the same command_id.
-9. The bridge verifies the command_id and returns the plugin response.
+8. The plugin returns a structured result containing the same lifecycle IDs.
+9. The bridge verifies and normalizes the result against the v0.2 schema.
 10. MCP returns the actual AutoCAD result to Odysseus.
 ```
 
-## 5. Response Contract Direction
+## 5. Response and Error Contracts
 
-A final response schema still needs to be formalized. The target shape is:
+Successful v0.2 commands return a schema-validated result:
 
 ```json
 {
-  "message_type": "command_result",
-  "schema_version": "0.1",
+  "schema_version": "0.2",
+  "run_id": "run-001",
+  "import_id": null,
   "command_id": "cmd-001",
   "application": "autocad",
+  "operation": "create_line",
   "status": "success",
-  "result": {
-    "document": "Drawing1.dwg",
-    "affected_objects": [
-      {
-        "type": "LINE",
-        "handle": "2F7",
-        "layer": "AI-WALL",
-        "action": "created"
-      }
-    ]
+  "message": "Line created successfully.",
+  "error": null,
+  "affected_objects": [
+    {
+      "object_type": "LINE",
+      "object_id": "2F7",
+      "action": "created"
+    }
+  ],
+  "data": {
+    "layer": "AI-WALL",
+    "start_in_drawing_units": [0, 0, 0],
+    "end_in_drawing_units": [20, 0, 0]
   },
+  "undo_token": "ai-action-001",
   "warnings": [],
-  "error": null
+  "document": {
+    "name": "Drawing1.dwg"
+  },
+  "versions": {
+    "bridge": "0.2.0",
+    "plugin": "0.2.0"
+  },
+  "timestamps": {
+    "submitted_at": "2026-07-22T18:30:00Z",
+    "bridge_received_at": "2026-07-22T18:30:00.100Z",
+    "completed_at": "2026-07-22T18:30:00.250Z"
+  }
 }
 ```
 
-The final contract must define successful, warning, rejected, timeout, disconnected, and execution-error states.
+Bridge failures use the formal error schema with a stable code, message,
+lifecycle IDs when known, and bridge timestamp. Plugin
+failures are normalized into the same v0.2 result envelope.
 
 ## 6. Safety and Trust Boundaries
 
@@ -241,7 +278,8 @@ Verified manually:
 
 - Odysseus discovers all three MCP tools.
 - `get_bridge_health` reaches the bridge and returns healthy.
-- `get_autocad_status` reaches the bridge and accurately reports disconnected.
+- `get_autocad_status` reaches the bridge and reports live connection state.
+- A complete v0.1 `create_autocad_line` call created a native AutoCAD line.
 - The HTTP plugin adapter detects connected and disconnected health states in automated tests.
 - Validated commands are posted to `/command` and correlated by `command_id` in automated tests.
 
@@ -250,16 +288,19 @@ Automated tests currently show:
 - MCP transport-security and bridge-error tests pass.
 - Invalid command validation passes.
 - Backend API tests cover health, plugin status, disconnected commands, successful real-result forwarding, structured plugin errors, and schema validation.
+- Contract tests cover v0.1 compatibility, v0.2 commands, normalized v0.2
+  results, structured errors, settings, lifecycle correlation, and log safety.
 
 ## 8. Ownership and Change Boundaries
 
 | Area | Owner for current work |
 |---|---|
 | `backend/`, MCP integration, schemas, backend tests | User and Codex collaboration |
-| `Plugin/` AutoCAD code | Teammate |
+| `Plugin/` AutoCAD code | Team, with explicit contract coordination |
 | Shared HTTP command-result contract | Team agreement |
 
-Backend changes must not modify `Plugin/` unless the user explicitly changes this boundary.
+Plugin changes in Milestone 1 were explicitly authorized so both sides expose
+the same v0.2 network contract.
 
 ## 9. Future Application Adapters
 
@@ -277,7 +318,7 @@ Each adapter should use native application objects and transactions while sharin
 
 ## 10. First End-to-End Definition of Done
 
-The initial infrastructure milestone is complete only when:
+The initial v0.1 infrastructure milestone is complete:
 
 1. AutoCAD 2027 reports connected through Odysseus.
 2. Odysseus submits one explicit `create_line` tool call.

@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.2",
+  "run_id": "run-example-001",
+  "import_id": null,
+  "command_id": "cmd-example-001",
+  "submitted_at": "2026-07-22T12:00:00Z",
+  "application": "autocad",
+  "operation": "create_line",
+  "parameters": {
+    "start": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "end": {
+      "x": 120,
+      "y": 0,
+      "z": 0
+    },
+    "layer": "AI-TEST",
+    "create_layer_if_missing": true
+  },
+  "units": "inches",
+  "coordinate_system": "world",
+  "requires_approval": false
+}
