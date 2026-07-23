@@ -22,6 +22,7 @@ public sealed class PythonBridge
 
     private readonly ConcurrentQueue<PendingCommand> _pendingCommands = new();
     private readonly DrawingService _drawingService = new();
+    private readonly ReadOnlyDrawingService _readOnlyDrawingService = new();
     private HttpListener? _listener;
     private CancellationTokenSource? _shutdown;
 
@@ -168,7 +169,7 @@ public sealed class PythonBridge
                     status = "ok",
                     application = "autocad",
                     plugin_version = CadResponse.PluginVersion,
-                    supported_schema_versions = new[] { "0.1", "0.2" }
+                    supported_schema_versions = new[] { "0.1", "0.2", "0.3" }
                 },
                 HttpStatusCode.OK,
                 cancellationToken);
@@ -323,7 +324,13 @@ public sealed class PythonBridge
                 }
 
                 using DocumentLock documentLock = document.LockDocument();
-                CadResponse response = _drawingService.CreateLine(pending.Payload);
+                CadResponse response =
+                    string.Equals(
+                        pending.Payload.Operation,
+                        "create_line",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? _drawingService.CreateLine(pending.Payload)
+                        : _readOnlyDrawingService.Execute(pending.Payload);
                 pending.Completion.TrySetResult(response);
             }
             catch (Exception exception)

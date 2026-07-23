@@ -1,6 +1,6 @@
 # AutoCAD-AI Architecture
 
-Last updated: July 22, 2026.
+Last updated: July 23, 2026.
 
 ## 1. Product Vision
 
@@ -36,10 +36,11 @@ AutoCAD 2027 plugin
 AutoCAD drawing database
 ```
 
-The complete v0.1 path has been verified with a native line created in
-AutoCAD. The v0.2 implementation preserves that contract while adding
+The complete v0.2 path has been verified with a native line created in
+AutoCAD. Schema v0.3 preserves that contract while adding
 traceable run identity, formal results and errors, version reporting, document
-identity, timestamps, and privacy-conscious lifecycle logs.
+identity, timestamps, privacy-conscious lifecycle logs, and bounded read-only
+drawing inspection.
 
 ## 3. Component Responsibilities
 
@@ -79,6 +80,8 @@ Current tools:
 | `get_bridge_health` | `GET /health` | Verified from Odysseus |
 | `get_autocad_status` | `GET /applications` | Verified from Odysseus |
 | `create_autocad_line` | `POST /commands` | Live v0.1 path verified; now emits v0.2 |
+| Drawing context tools (5) | `POST /commands` | Emit schema-v0.3 read commands |
+| Layer and entity tools (5) | `POST /commands` | Emit bounded schema-v0.3 read commands |
 
 The server returns structured errors when the bridge cannot be reached or returns an unsuccessful HTTP response.
 
@@ -115,9 +118,12 @@ Files:
 - `schemas/v0.2/command.schema.json`
 - `schemas/v0.2/result.schema.json`
 - `schemas/v0.2/error.schema.json`
+- `schemas/v0.3/command.schema.json`
+- `schemas/v0.3/result.schema.json`
+- `schemas/v0.3/error.schema.json`
 
 These schemas are the shared contract between Odysseus tools, the bridge, and
-application plugins. Both command versions currently support one operation:
+application plugins. Schemas v0.1 and v0.2 support:
 
 ```text
 create_line
@@ -150,6 +156,11 @@ The schema requires explicit coordinates, units, layer behavior, application
 target, operation name, and command identity. Unsupported or incomplete
 commands are rejected rather than guessed.
 
+Schema v0.3 freezes line creation at v0.2 and adds ten read-only operations.
+Each operation has an explicit parameter shape. Layer and entity collections
+are capped at 500 records, window queries require world coordinates, and
+handle lookups accept only hexadecimal AutoCAD handles.
+
 ### 3.5 AutoCAD 2027 Plugin
 
 Directory: `Plugin/`
@@ -173,16 +184,17 @@ The Python backend must not depend on the plugin's internal classes. Both sides 
 
 ## 4. Command Lifecycle
 
-### 4.1 Current read-only lifecycle
+### 4.1 Read-only lifecycle
 
 This path is working:
 
 ```text
-1. User asks Odysseus to check bridge or AutoCAD status.
-2. Odysseus calls the corresponding MCP tool.
-3. The MCP server sends an HTTP request to the bridge.
-4. The bridge reads its live state.
-5. The result returns through MCP to Odysseus.
+1. User asks Odysseus about the active drawing, layers, or entities.
+2. Odysseus calls one narrow read-only MCP tool.
+3. The MCP server builds a traceable schema-v0.3 command.
+4. The bridge validates and forwards the command.
+5. The plugin opens AutoCAD objects in read mode on the UI thread.
+6. The result is normalized, schema-validated, logged, and returned.
 ```
 
 ### 4.2 Write lifecycle
@@ -280,6 +292,8 @@ Verified manually:
 - `get_bridge_health` reaches the bridge and returns healthy.
 - `get_autocad_status` reaches the bridge and reports live connection state.
 - A complete v0.1 `create_autocad_line` call created a native AutoCAD line.
+- A complete v0.2 `create_autocad_line` call completed with correlated
+  lifecycle IDs.
 - The HTTP plugin adapter detects connected and disconnected health states in automated tests.
 - Validated commands are posted to `/command` and correlated by `command_id` in automated tests.
 
@@ -290,6 +304,8 @@ Automated tests currently show:
 - Backend API tests cover health, plugin status, disconnected commands, successful real-result forwarding, structured plugin errors, and schema validation.
 - Contract tests cover v0.1 compatibility, v0.2 commands, normalized v0.2
   results, structured errors, settings, lifecycle correlation, and log safety.
+- Schema-v0.3 tests cover all ten read operations, bounded parameters, bridge
+  normalization, and MCP argument mapping.
 
 ## 8. Ownership and Change Boundaries
 

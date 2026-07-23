@@ -1,6 +1,9 @@
-# AutoCAD AI Plugin proof of concept
+# AutoCAD AI Plugin
 
-This .NET plugin accepts a JSON `create_line` request, executes it safely on AutoCAD's UI thread, and returns structured JSON containing the new line's AutoCAD handle and converted coordinates.
+This .NET plugin executes validated `create_line` requests and bounded
+read-only drawing queries on AutoCAD's UI thread. It returns traceable JSON
+with document identity, object handles, drawing context, geometry properties,
+and AutoCAD-AI provenance.
 
 The checked-in Autodesk packages are version `26.0.0`, which is the **AutoCAD 2027 .NET API** and targets **.NET 10**. Use the matching AutoCAD release when loading this DLL. A different AutoCAD release requires matching Autodesk API package versions and target framework.
 
@@ -79,3 +82,20 @@ The returned `undo_token` is currently a correlation identifier (`cmd-001` becom
 - Requests execute only after AutoCAD becomes idle, preventing database access from the HTTP background thread.
 - A request times out after 30 seconds if AutoCAD remains busy and is then skipped rather than executed late.
 - `requires_approval: true` is rejected without making a drawing change.
+
+## Read-only schema v0.3 operations
+
+- `get_drawing_context`
+- `get_active_document`
+- `get_drawing_units`
+- `get_current_coordinate_system`
+- `get_drawing_extents`
+- `list_layers`
+- `get_selected_entities`
+- `get_entities_in_window`
+- `get_entity_properties`
+- `find_entities_by_import_id`
+
+Read queries use read-mode transactions and never return an undo token.
+Layer/entity collections are limited to at most 500 records. Window queries
+use world coordinates and geometric-extents intersection.

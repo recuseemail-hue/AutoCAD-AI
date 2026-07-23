@@ -19,6 +19,7 @@ public sealed class CadCommands
     };
 
     private readonly DrawingService _drawingService = new();
+    private readonly ReadOnlyDrawingService _readOnlyDrawingService = new();
 
     [CommandMethod("AI_DRAW_JSON")]
     public void AiDrawJson()
@@ -46,7 +47,13 @@ public sealed class CadCommands
                 throw new CadRequestException("The JSON request body is required.");
             }
 
-            CadResponse response = _drawingService.CreateLine(payload);
+            CadResponse response =
+                string.Equals(
+                    payload.Operation,
+                    "create_line",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? _drawingService.CreateLine(payload)
+                    : _readOnlyDrawingService.Execute(payload);
             editor.WriteMessage($"\n{JsonSerializer.Serialize(response, JsonOptions)}");
         }
         catch (JsonException exception)

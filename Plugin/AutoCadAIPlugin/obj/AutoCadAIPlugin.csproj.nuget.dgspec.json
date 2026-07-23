@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "restore": {
         "projectUniqueName": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
         "projectName": "AutoCadAIPlugin",
@@ -42,7 +42,7 @@
           ]
         },
         "restoreAuditProperties": {
-          "enableAudit": "true",
+          "enableAudit": "false",
           "auditLevel": "low",
           "auditMode": "all"
         },

@@ -6,23 +6,25 @@ The first target workflow uses **Odysseus** as the chat interface, a local **Pyt
 
 ## Current Status
 
-Last updated: July 22, 2026.
+Last updated: July 23, 2026.
 
 The first live drawing vertical slice is complete: Odysseus successfully
 created a native line through the MCP server, bridge, and AutoCAD plugin. Work
-on branch `Luke/PDFRead` now adds the traceable v0.2 contract required for
-reviewable PDF-to-CAD workflows.
+on branch `Luke/PDFRead` has completed the traceable v0.2 lifecycle and now
+implements the schema-v0.3 read-only AutoCAD toolkit required for reviewable
+PDF-to-CAD workflows.
 
 | Component | Status | Verified result |
 |---|---|---|
-| JSON schemas v0.1 and v0.2 | Implemented | v0.1 remains compatible; v0.2 adds lifecycle identity and formal result/error contracts |
-| FastAPI bridge v0.2.0 | Implemented | Validates by schema version, normalizes results, and returns traceable structured errors |
+| JSON schemas v0.1-v0.3 | Implemented | v0.1/v0.2 remain compatible; v0.3 adds ten bounded read-only operations |
+| FastAPI bridge v0.3.0 | Implemented | Validates by schema version, normalizes results, and returns traceable structured errors |
 | AutoCAD connection reporting | Implemented | `GET /applications` reports plugin version and supported schema versions |
 | Command observability | Implemented | Privacy-conscious JSONL logs correlate run, import, and command IDs |
-| Odysseus MCP server | Working | Odysseus discovers all 3 tools through Streamable HTTP |
-| AutoCAD 2027 plugin v0.2.0 | Implemented | Hosts local HTTP health and command endpoints on port `8765` |
+| Odysseus MCP server | Implemented | Exposes health, line creation, and ten read-only tools through Streamable HTTP |
+| AutoCAD 2027 plugin v0.3.0 | Rebuilt | Adds native read-only queries and provenance lookup on port `8765` |
 | Live schema-v0.1 line creation | Verified | A real native AutoCAD line was created successfully |
-| Live schema-v0.2 line creation | Pending reload check | Rebuilt DLL is ready for one final in-AutoCAD contract verification |
+| Live schema-v0.2 line creation | Verified | Correlated run and command completed successfully |
+| Live schema-v0.3 reads | Verified | Context, layers, selection, and handle properties succeeded through Odysseus |
 
 The verified baseline path is:
 
@@ -39,14 +41,22 @@ User
 
 ## Current MCP Tools
 
-The Odysseus integration currently exposes:
+The Odysseus integration exposes:
 
 - `get_bridge_health` - confirms that the local Python bridge is available.
 - `get_autocad_status` - reports whether an AutoCAD plugin is connected.
 - `create_autocad_line` - builds a traceable schema-v0.2 line command and submits it to the bridge.
-
-All three tools have been verified on the v0.1 baseline. The rebuilt v0.2
-plugin requires one live reload check before Milestone 1 is closed.
+- `get_drawing_context`, `get_active_document`, `get_drawing_units`,
+  `get_current_coordinate_system`, and `get_drawing_extents` - inspect the
+  active drawing.
+- `list_layers` and `get_selected_entities` - inspect layer and selection
+  state.
+- `get_entities_in_window` - finds entities intersecting a bounded
+  world-space window.
+- `get_entity_properties` - reads common and type-specific properties using
+  an AutoCAD handle.
+- `find_entities_by_import_id` - finds geometry carrying AutoCAD-AI
+  provenance.
 
 ## Local Service Addresses
 
@@ -104,15 +114,16 @@ The command log records lifecycle metadata, not complete geometry payloads.
 
 ## Immediate Next Step
 
-Verify the newly rebuilt v0.2 contract in AutoCAD:
+Verify the newly rebuilt v0.3 read-only toolkit in AutoCAD:
 
 1. Load `Plugin/AutoCadAIPlugin/dist/AutoCadAIPlugin.dll` in AutoCAD 2027.
 2. Verify `http://localhost:8765/health` directly.
 3. Verify that `get_autocad_status` reports connected.
-4. Ask Odysseus to create one line with explicit coordinates, units, and layer.
-5. Confirm that the result includes matching `run_id` and `command_id`,
-   bridge/plugin versions, timestamps, active document, and object handle.
-6. Undo the operation safely, then begin Milestone 2 read-only tools.
+4. Ask Odysseus: `Inspect the active drawing context and list its layers.`
+5. Select one entity and ask Odysseus to inspect the selected entities.
+6. Use its returned `object_id` with `get_entity_properties`.
+7. Verify that every result is schema v0.3 with matching lifecycle IDs and
+   `undo_token: null`.
 
 ## Design Principles
 
@@ -144,7 +155,8 @@ AutoCAD-AI/
 |-- Plugin/                  # AutoCAD 2027 plugin
 |-- schemas/
 |   |-- v0.1/
-|   `-- v0.2/
+|   |-- v0.2/
+|   `-- v0.3/
 |-- Implementation Plan.md
 |-- README.md
 |-- requirements.txt

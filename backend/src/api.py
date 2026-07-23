@@ -14,8 +14,9 @@ from backend.src.connection_manager import (
 )
 from backend.src.contracts import (
     ContractValidationError,
+    TRACEABLE_SCHEMA_VERSIONS,
     bridge_error_payload,
-    normalize_v02_result,
+    normalize_traceable_result,
     utc_now,
     validate_command,
 )
@@ -140,19 +141,19 @@ async def submit_command(
     try:
         plugin_result = await autocad_plugin_client.send_command(command)
         result = (
-            normalize_v02_result(
+            normalize_traceable_result(
                 command,
                 plugin_result,
                 bridge_received_at,
             )
-            if schema_version == "0.2"
+            if schema_version in TRACEABLE_SCHEMA_VERSIONS
             else plugin_result
         )
     except AutoCADPluginHTTPError as error:
         duration_ms = (perf_counter() - started_at) * 1000
-        if schema_version == "0.2":
+        if schema_version in TRACEABLE_SCHEMA_VERSIONS:
             try:
-                result = normalize_v02_result(
+                result = normalize_traceable_result(
                     command,
                     error.body,
                     bridge_received_at,

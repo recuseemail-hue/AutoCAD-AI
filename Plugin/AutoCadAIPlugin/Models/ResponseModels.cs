@@ -4,7 +4,7 @@ namespace AutoCadAIPlugin.Models;
 
 public sealed class CadResponse
 {
-    public const string PluginVersion = "0.2.0";
+    public const string PluginVersion = "0.3.0";
 
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; init; } = "0.1";
@@ -42,7 +42,7 @@ public sealed class CadResponse
     public IReadOnlyList<AffectedObject> AffectedObjects { get; init; } = [];
 
     [JsonPropertyName("data")]
-    public LineResponseData? Data { get; init; }
+    public object? Data { get; init; }
 
     [JsonPropertyName("undo_token")]
     public string? UndoToken { get; init; }
@@ -69,18 +69,18 @@ public sealed class CadResponse
         string? documentName = null,
         params string[] warnings)
     {
-        bool isVersionTwo = payload.SchemaVersion == "0.2";
+        bool isTraceable = payload.SchemaVersion is "0.2" or "0.3";
         return new CadResponse
         {
             SchemaVersion = payload.SchemaVersion,
-            RunId = isVersionTwo ? payload.RunId : null,
-            ImportId = isVersionTwo ? payload.ImportId : null,
+            RunId = isTraceable ? payload.RunId : null,
+            ImportId = isTraceable ? payload.ImportId : null,
             CommandId = payload.CommandId,
-            Application = isVersionTwo ? payload.Application : null,
-            Operation = isVersionTwo ? payload.Operation : null,
+            Application = isTraceable ? payload.Application : null,
+            Operation = isTraceable ? payload.Operation : null,
             Status = "error",
             Message = message,
-            Error = isVersionTwo
+            Error = isTraceable
                 ? new CadError
                 {
                     Code = code,
@@ -88,11 +88,11 @@ public sealed class CadResponse
                     Details = null
                 }
                 : null,
-            Document = isVersionTwo && !string.IsNullOrWhiteSpace(documentName)
+            Document = isTraceable && !string.IsNullOrWhiteSpace(documentName)
                 ? new CadDocumentInfo { Name = documentName }
                 : null,
-            ReportedPluginVersion = isVersionTwo ? PluginVersion : null,
-            CompletedAt = isVersionTwo
+            ReportedPluginVersion = isTraceable ? PluginVersion : null,
+            CompletedAt = isTraceable
                 ? DateTimeOffset.UtcNow.ToString("O")
                 : null,
             Warnings = warnings

@@ -118,6 +118,43 @@ SUCCESSFUL_V02_PLUGIN_RESULT = {
     "completed_at": "2026-07-22T12:00:02Z",
 }
 
+VALID_V03_READ_COMMAND = {
+    "schema_version": "0.3",
+    "run_id": "run-read-test-003",
+    "import_id": None,
+    "command_id": "cmd-read-test-003",
+    "submitted_at": "2026-07-23T12:00:00Z",
+    "application": "autocad",
+    "operation": "get_drawing_context",
+    "parameters": {},
+    "requires_approval": False,
+}
+
+SUCCESSFUL_V03_PLUGIN_RESULT = {
+    "schema_version": "0.3",
+    "run_id": "run-read-test-003",
+    "import_id": None,
+    "command_id": "cmd-read-test-003",
+    "application": "autocad",
+    "operation": "get_drawing_context",
+    "status": "success",
+    "message": "Drawing context retrieved.",
+    "affected_objects": [],
+    "data": {
+        "document": {
+            "name": "Drawing1.dwg",
+            "is_read_only": False,
+        },
+        "drawing_units": "inches",
+        "current_layer": "0",
+    },
+    "undo_token": None,
+    "warnings": [],
+    "document": {"name": "Drawing1.dwg"},
+    "plugin_version": "0.3.0",
+    "completed_at": "2026-07-23T12:00:00.200Z",
+}
+
 
 def set_plugin_connection(
     monkeypatch: pytest.MonkeyPatch,
@@ -141,7 +178,7 @@ def test_health_check() -> None:
         "status": "ok",
         "service": "AutoCAD-AI bridge",
         "version": BRIDGE_VERSION,
-        "supported_schema_versions": ["0.1", "0.2"],
+        "supported_schema_versions": ["0.1", "0.2", "0.3"],
     }
 
 
@@ -225,6 +262,37 @@ def test_v02_command_returns_schema_valid_traceable_result(
         "plugin": "0.2.0",
     }
     assert body["timestamps"]["submitted_at"] == "2026-07-22T12:00:00Z"
+
+
+def test_v03_read_command_returns_schema_valid_traceable_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_plugin_connection(monkeypatch, connected=True)
+
+    async def fake_send_command(command: dict[str, Any]) -> dict[str, Any]:
+        assert command == VALID_V03_READ_COMMAND
+        return SUCCESSFUL_V03_PLUGIN_RESULT
+
+    monkeypatch.setattr(
+        api.autocad_plugin_client,
+        "send_command",
+        fake_send_command,
+    )
+
+    response = client.post("/commands", json=VALID_V03_READ_COMMAND)
+
+    assert response.status_code == 200
+    body = response.json()
+    validate_result(body)
+    assert body["schema_version"] == "0.3"
+    assert body["operation"] == "get_drawing_context"
+    assert body["undo_token"] is None
+    assert body["affected_objects"] == []
+    assert body["data"]["drawing_units"] == "inches"
+    assert body["versions"] == {
+        "bridge": BRIDGE_VERSION,
+        "plugin": "0.3.0",
+    }
 
 
 def test_disconnected_plugin_returns_503(

@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autocad-ai.local/schemas/v0.3/result.schema.json",
+  "title": "AutoCAD-AI Read Result v0.3",
+  "description": "Normalized result for a traceable, read-only AutoCAD query.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "import_id",
+    "command_id",
+    "application",
+    "operation",
+    "status",
+    "message",
+    "error",
+    "affected_objects",
+    "data",
+    "undo_token",
+    "warnings",
+    "document",
+    "versions",
+    "timestamps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "import_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "application": {
+      "const": "autocad"
+    },
+    "operation": {
+      "enum": [
+        "get_drawing_context",
+        "get_active_document",
+        "get_drawing_units",
+        "get_current_coordinate_system",
+        "get_drawing_extents",
+        "list_layers",
+        "get_selected_entities",
+        "get_entities_in_window",
+        "get_entity_properties",
+        "find_entities_by_import_id"
+      ]
+    },
+    "status": {
+      "enum": ["success", "error"]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    },
+    "affected_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/affected_object"
+      }
+    },
+    "data": {
+      "type": ["object", "null"]
+    },
+    "undo_token": {
+      "type": ["string", "null"]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "document": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/document"
+        }
+      ]
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bridge", "plugin"],
+      "properties": {
+        "bridge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plugin": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submitted_at",
+        "bridge_received_at",
+        "completed_at"
+      ],
+      "properties": {
+        "submitted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "bridge_received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "details"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": ["object", "null"]
+        }
+      }
+    },
+    "affected_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_type", "object_id", "action"],
+      "properties": {
+        "object_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "object_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

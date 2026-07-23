@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autocad-ai.local/schemas/v0.3/command.schema.json",
+  "title": "AutoCAD-AI Read Command v0.3",
+  "description": "Traceable, read-only AutoCAD query contract.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "import_id",
+    "command_id",
+    "submitted_at",
+    "application",
+    "operation",
+    "parameters",
+    "requires_approval"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "import_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "application": {
+      "const": "autocad"
+    },
+    "operation": {
+      "enum": [
+        "get_drawing_context",
+        "get_active_document",
+        "get_drawing_units",
+        "get_current_coordinate_system",
+        "get_drawing_extents",
+        "list_layers",
+        "get_selected_entities",
+        "get_entities_in_window",
+        "get_entity_properties",
+        "find_entities_by_import_id"
+      ]
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "coordinate_system": {
+      "const": "world"
+    },
+    "requires_approval": {
+      "const": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "get_drawing_context",
+              "get_active_document",
+              "get_drawing_units",
+              "get_current_coordinate_system",
+              "get_drawing_extents"
+            ]
+          }
+        },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "$ref": "#/$defs/empty_parameters"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "list_layers",
+              "get_selected_entities"
+            ]
+          }
+        },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "$ref": "#/$defs/limited_parameters"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "get_entities_in_window"
+          }
+        },
+        "required": ["operation"]
+      },
+      "then": {
+        "required": ["coordinate_system"],
+        "properties": {
+          "parameters": {
+            "$ref": "#/$defs/window_parameters"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "get_entity_properties"
+          }
+        },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "$ref": "#/$defs/entity_parameters"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "find_entities_by_import_id"
+          }
+        },
+        "required": ["operation"]
+      },
+      "then": {
+        "properties": {
+          "parameters": {
+            "$ref": "#/$defs/import_parameters"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "empty_parameters": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "limited_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "$ref": "#/$defs/limit"
+        }
+      }
+    },
+    "window_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "window_min",
+        "window_max"
+      ],
+      "properties": {
+        "window_min": {
+          "$ref": "#/$defs/point3d"
+        },
+        "window_max": {
+          "$ref": "#/$defs/point3d"
+        },
+        "limit": {
+          "$ref": "#/$defs/limit"
+        }
+      }
+    },
+    "entity_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["object_id"],
+      "properties": {
+        "object_id": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]+$"
+        }
+      }
+    },
+    "import_parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_import_id"],
+      "properties": {
+        "target_import_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limit": {
+          "$ref": "#/$defs/limit"
+        }
+      }
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 500
+    },
+    "point3d": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "z": {
+          "type": "number"
+        }
+      }
+    }
+  }
+}

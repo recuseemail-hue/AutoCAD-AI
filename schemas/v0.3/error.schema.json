@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autocad-ai.local/schemas/v0.3/error.schema.json",
+  "title": "AutoCAD-AI Bridge Error v0.3",
+  "description": "Structured failure returned before a read result is available.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "run_id",
+    "command_id",
+    "error",
+    "bridge_version",
+    "timestamp"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.3"
+    },
+    "status": {
+      "const": "error"
+    },
+    "run_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "command_id": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "details"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": ["object", "null"]
+        }
+      }
+    },
+    "bridge_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

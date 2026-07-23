@@ -14,6 +14,7 @@ from backend.src.config import (
 
 SCHEMA_ROOT = PROJECT_ROOT / "schemas"
 FORMAT_CHECKER = FormatChecker()
+TRACEABLE_SCHEMA_VERSIONS = ("0.2", "0.3")
 
 
 class ContractValidationError(ValueError):
@@ -59,7 +60,7 @@ def validate_command(command: dict[str, Any]) -> str:
 
 def validate_result(result: dict[str, Any]) -> None:
     version = result.get("schema_version")
-    if version != "0.2":
+    if version not in TRACEABLE_SCHEMA_VERSIONS:
         return
 
     try:
@@ -79,11 +80,18 @@ def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def normalize_v02_result(
+def normalize_traceable_result(
     command: dict[str, Any],
     plugin_result: dict[str, Any],
     bridge_received_at: str,
 ) -> dict[str, Any]:
+    schema_version = command["schema_version"]
+    if schema_version not in TRACEABLE_SCHEMA_VERSIONS:
+        raise ContractValidationError(
+            "UNSUPPORTED_SCHEMA_VERSION",
+            f"Cannot normalize schema_version '{schema_version}'.",
+        )
+
     status = plugin_result.get("status", "error")
     error = plugin_result.get("error")
     if status == "error" and not isinstance(error, dict):
@@ -103,7 +111,7 @@ def normalize_v02_result(
         document = None
 
     normalized = {
-        "schema_version": "0.2",
+        "schema_version": schema_version,
         "run_id": command["run_id"],
         "import_id": command["import_id"],
         "command_id": command["command_id"],
@@ -142,8 +150,12 @@ def bridge_error_payload(
     details: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     command = command or {}
+    schema_version = command.get("schema_version")
+    if schema_version not in TRACEABLE_SCHEMA_VERSIONS:
+        schema_version = "0.2"
+
     return {
-        "schema_version": "0.2",
+        "schema_version": schema_version,
         "status": "error",
         "run_id": command.get("run_id"),
         "command_id": command.get("command_id"),

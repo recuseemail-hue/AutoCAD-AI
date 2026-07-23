@@ -1,6 +1,6 @@
 # AutoCAD-AI Roadmap
 
-Last updated: July 22, 2026.
+Last updated: July 23, 2026.
 
 ## Status Legend
 
@@ -15,9 +15,9 @@ The first real vertical slice is complete:
 
 > A user asks Odysseus to create one line; the request travels through MCP and the Python bridge to the AutoCAD 2027 plugin; AutoCAD creates the line; the actual result returns to Odysseus; and the operation can be undone safely.
 
-The native line was created successfully through the full Odysseus-to-AutoCAD
-path. Milestone 1 of the PDF-to-CAD plan now adds v0.2 lifecycle contracts and
-observability while preserving that v0.1 baseline. See
+The native line and its v0.2 lifecycle were verified through the full
+Odysseus-to-AutoCAD path. Milestone 2 now implements schema-v0.3 read-only
+drawing inspection while preserving the v0.1/v0.2 baseline. See
 `Implementation Plan.md` for the authoritative forward plan.
 
 ## Progress Summary
@@ -26,12 +26,12 @@ observability while preserving that v0.1 baseline. See
 |---|---|
 | Repository and Python environment | Complete |
 | Command schema v0.1 for `create_line` | Complete baseline |
-| Command, result, and error schemas v0.2 | Implemented; live reload check pending |
+| Command, result, and error schemas v0.2 | Complete and live verified |
+| Read-only command, result, and error schemas v0.3 | Complete and live verified |
 | FastAPI health and command validation | Complete baseline |
 | AutoCAD connection-status endpoint | Complete |
 | HTTP adapter for AutoCAD plugin | Complete baseline |
-| MCP server and three Odysseus tools | Complete baseline |
-| Odysseus MCP discovery | Complete: 3/3 tools |
+| MCP server and thirteen Odysseus tools | Implemented; new tools need live discovery |
 | Odysseus bridge-health tool call | Complete |
 | Odysseus AutoCAD-status tool call | Complete |
 | Command-result correlation | Complete through HTTP request/response |
@@ -39,7 +39,7 @@ observability while preserving that v0.1 baseline. See
 | Structured lifecycle logging | Implemented |
 | AutoCAD 2027 plugin connection | Complete baseline |
 | Real AutoCAD line creation | Complete baseline |
-| Rebuilt v0.2 DLL | Complete; live contract check pending |
+| Rebuilt v0.3 DLL | Complete and live verified |
 
 ## Phase 1 - Foundation
 
@@ -113,7 +113,7 @@ Status: **Complete baseline**
 - [x] Verify the AutoCAD status tool from an Odysseus conversation.
 - [x] Confirm that the disconnected result accurately reflects bridge state.
 - [x] Verify `create_autocad_line` against the real plugin on v0.1.
-- [ ] Reload the rebuilt plugin and verify the complete v0.2 result envelope.
+- [x] Reload the rebuilt plugin and verify the complete v0.2 result envelope.
 - [ ] Add tool descriptions and approval behavior for future operations.
 - [ ] Add concise user-facing interpretations for common bridge errors.
 
@@ -146,7 +146,7 @@ Required updates:
 
 ## Phase 6 - AutoCAD 2027 Plugin Connection
 
-Status: **Complete baseline; v0.2 reload pending**
+Status: **Complete through v0.2; v0.3 read reload pending**
 
 The plugin owns AutoCAD-native execution. Milestone 1 updates both the plugin
 and bridge because the user explicitly authorized a coordinated v0.2 contract
@@ -191,19 +191,23 @@ Completion criteria:
 
 ## Phase 8 - Read-Only AutoCAD Tools
 
-Status: **Planned**
+Status: **Complete and live verified**
 
 Read operations should precede broader write access.
 
-- [ ] Get active document.
-- [ ] Get document read-only state.
-- [ ] Get drawing units.
-- [ ] Get current UCS.
-- [ ] Get current layer.
-- [ ] List layers.
-- [ ] Get selected objects.
-- [ ] Get entity properties by stable identifier.
-- [ ] Get drawing extents.
+- [x] Get compact drawing context.
+- [x] Get active document and read-only state.
+- [x] Get drawing units.
+- [x] Get current UCS origin, axes, and matrix.
+- [x] Get current layer.
+- [x] List layers with state and bounded results.
+- [x] Get selected objects.
+- [x] Get entities intersecting a world-space window.
+- [x] Get entity properties by stable handle.
+- [x] Find entities by AutoCAD-AI import ID.
+- [x] Get model-space drawing extents without updating the database.
+- [x] Return type-specific geometry for common entity types.
+- [x] Attach queryable provenance to newly created v0.2 lines.
 
 ## Phase 9 - Primitive AutoCAD Operations
 

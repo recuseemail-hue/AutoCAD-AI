@@ -1,0 +1,47 @@
+{
+  "schema_version": "0.3",
+  "run_id": "run-read-example-001",
+  "import_id": null,
+  "command_id": "cmd-read-example-001",
+  "application": "autocad",
+  "operation": "get_drawing_context",
+  "status": "success",
+  "message": "Drawing context retrieved.",
+  "error": null,
+  "affected_objects": [],
+  "data": {
+    "document": {
+      "name": "Drawing1.dwg"
+    },
+    "drawing_units": "inches",
+    "current_layer": "0",
+    "coordinate_system": "current_ucs",
+    "extents": {
+      "available": true,
+      "minimum": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "maximum": {
+        "x": 120,
+        "y": 50,
+        "z": 0
+      }
+    }
+  },
+  "undo_token": null,
+  "warnings": [],
+  "document": {
+    "name": "Drawing1.dwg"
+  },
+  "versions": {
+    "bridge": "0.3.0",
+    "plugin": "0.3.0"
+  },
+  "timestamps": {
+    "submitted_at": "2026-07-23T12:00:00Z",
+    "bridge_received_at": "2026-07-23T12:00:00.100Z",
+    "completed_at": "2026-07-23T12:00:00.200Z"
+  }
+}

@@ -4,8 +4,8 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BRIDGE_VERSION = "0.2.0"
-SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2")
+BRIDGE_VERSION = "0.3.0"
+SUPPORTED_SCHEMA_VERSIONS = ("0.1", "0.2", "0.3")
 
 
 def _positive_float(name: str, default: float) -> float:

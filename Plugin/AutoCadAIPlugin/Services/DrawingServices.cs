@@ -21,7 +21,7 @@ public sealed class DrawingService
         }
 
         Database db = doc.Database;
-        LineParams parameters = payload.Parameters;
+        CadParameters parameters = payload.Parameters;
         List<string> warnings = [];
         double conversionFactor = GetConversionFactor(payload.Units, db.Insunits, warnings);
 
@@ -33,6 +33,7 @@ public sealed class DrawingService
             throw new CadRequestException("A line must have different start and end points.");
         }
 
+        bool isVersionTwo = payload.SchemaVersion == "0.2";
         string objectHandle;
         using (Transaction transaction = db.TransactionManager.StartTransaction())
         {
@@ -65,12 +66,15 @@ public sealed class DrawingService
             using Line line = new(startPoint, endPoint) { LayerId = layerId };
             modelSpace.AppendEntity(line);
             transaction.AddNewlyCreatedDBObject(line, true);
+            if (isVersionTwo)
+            {
+                AttachProvenance(line, payload, db, transaction);
+            }
             objectHandle = line.ObjectId.Handle.ToString();
 
             transaction.Commit();
         }
 
-        bool isVersionTwo = payload.SchemaVersion == "0.2";
         return new CadResponse
         {
             SchemaVersion = payload.SchemaVersion,
@@ -233,6 +237,50 @@ public sealed class DrawingService
             : commandId;
 
         return $"ai-action-{suffix}";
+    }
+
+    private static void AttachProvenance(
+        Entity entity,
+        CadPayload payload,
+        Database database,
+        Transaction transaction)
+    {
+        RegAppTable registrationTable = (RegAppTable)transaction.GetObject(
+            database.RegAppTableId,
+            OpenMode.ForRead);
+        if (!registrationTable.Has(ReadOnlyDrawingService.ProvenanceApplicationName))
+        {
+            registrationTable.UpgradeOpen();
+            using RegAppTableRecord registration = new()
+            {
+                Name = ReadOnlyDrawingService.ProvenanceApplicationName
+            };
+            registrationTable.Add(registration);
+            transaction.AddNewlyCreatedDBObject(registration, true);
+        }
+
+        List<TypedValue> values =
+        [
+            new(
+                (int)DxfCode.ExtendedDataRegAppName,
+                ReadOnlyDrawingService.ProvenanceApplicationName),
+            new((int)DxfCode.ExtendedDataAsciiString, "run_id"),
+            new((int)DxfCode.ExtendedDataAsciiString, payload.RunId!),
+            new((int)DxfCode.ExtendedDataAsciiString, "command_id"),
+            new((int)DxfCode.ExtendedDataAsciiString, payload.CommandId)
+        ];
+        if (!string.IsNullOrWhiteSpace(payload.ImportId))
+        {
+            values.Add(new TypedValue(
+                (int)DxfCode.ExtendedDataAsciiString,
+                "import_id"));
+            values.Add(new TypedValue(
+                (int)DxfCode.ExtendedDataAsciiString,
+                payload.ImportId));
+        }
+
+        using ResultBuffer provenance = new(values.ToArray());
+        entity.XData = provenance;
     }
 }
 

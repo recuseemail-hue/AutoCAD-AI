@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.3",
+  "run_id": "run-read-example-001",
+  "import_id": null,
+  "command_id": "cmd-read-example-001",
+  "submitted_at": "2026-07-23T12:00:00Z",
+  "application": "autocad",
+  "operation": "get_drawing_context",
+  "parameters": {},
+  "requires_approval": false
+}
