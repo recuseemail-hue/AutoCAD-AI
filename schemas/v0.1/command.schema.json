@@ -59,8 +59,8 @@
         "inches",
         "feet",
         "millimeters",
-        "meters",
-        "drawing_units"
+        "centimeters",
+        "meters"
       ]
     },
     "coordinate_system": {

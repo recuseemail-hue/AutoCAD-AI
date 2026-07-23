@@ -1,6 +1,6 @@
 # AutoCAD-AI Architecture
 
-Last updated: July 21, 2026.
+Last updated: July 22, 2026.
 
 ## 1. Product Vision
 
@@ -28,15 +28,15 @@ AutoCAD-AI MCP server (host port 8001)
         v
 FastAPI bridge (host port 8000)
         |
-        | WebSocket: /ws/autocad
+        | local HTTP: port 8765
         v
-AutoCAD 2027 plugin (not connected yet)
+AutoCAD 2027 plugin
         |
         v
 AutoCAD drawing database
 ```
 
-The portion through the FastAPI bridge has been verified from Odysseus. The bridge correctly reports that AutoCAD is currently disconnected. The plugin-to-bridge and live drawing-operation portion remains the next integration boundary.
+The portion through the FastAPI bridge has been verified from Odysseus. The bridge now checks the plugin's HTTP health endpoint and forwards commands to its HTTP command endpoint. Live drawing execution remains to be manually verified with AutoCAD 2027 and the plugin loaded.
 
 ## 3. Component Responsibilities
 
@@ -75,7 +75,7 @@ Current tools:
 |---|---|---|
 | `get_bridge_health` | `GET /health` | Verified from Odysseus |
 | `get_autocad_status` | `GET /applications` | Verified from Odysseus |
-| `create_autocad_line` | `POST /commands` | Defined; live AutoCAD execution not yet verified |
+| `create_autocad_line` | `POST /commands` | HTTP forwarding implemented; live AutoCAD execution not yet verified |
 
 The server returns structured errors when the bridge cannot be reached or returns an unsuccessful HTTP response.
 
@@ -93,20 +93,12 @@ Current endpoints:
 | Endpoint | Purpose | Current behavior |
 |---|---|---|
 | `GET /health` | Service health | Returns that the bridge is running |
-| `GET /applications` | Application status | Reports the live AutoCAD WebSocket state |
-| `POST /commands` | Submit a validated command | Rejects malformed commands and returns `503` when AutoCAD is disconnected |
-| `WS /ws/autocad` | Plugin transport | Accepts one AutoCAD client connection |
+| `GET /applications` | Application status | Calls `GET http://localhost:8765/health` |
+| `POST /commands` | Submit a validated command | Calls `POST http://localhost:8765/command` and returns the real plugin response |
 
 The bridge currently validates incoming commands using schema v0.1. It no longer returns a successful mock result when AutoCAD is unavailable.
 
-The remaining bridge gap is command-result correlation. `connection_manager.py` must:
-
-1. create a pending result for each `command_id`;
-2. send the command to the connected WebSocket client;
-3. wait for the matching plugin response;
-4. resolve the correct pending HTTP request;
-5. handle timeouts, disconnects, duplicate IDs, and malformed results;
-6. clean up pending state on every success and failure path.
+HTTP request/response semantics provide command-result correlation. `connection_manager.py` checks that a successful plugin response contains the same `command_id`, maps connection failures to `503`, maps timeouts to `504`, rejects malformed responses, and preserves structured plugin errors.
 
 ### 3.4 Command Schema
 
@@ -148,16 +140,16 @@ Directory: `Plugin/`
 
 The AutoCAD plugin is maintained by the user's teammate and is outside the backend work boundary.
 
-Intended responsibilities:
+Current responsibilities:
 
-- connect to `ws://127.0.0.1:8000/ws/autocad`;
-- receive validated command messages;
+- host `GET http://localhost:8765/health` and `POST http://localhost:8765/command`;
+- receive validated command messages over local HTTP;
 - marshal work onto a valid AutoCAD application/document context;
 - perform native AutoCAD transactions;
 - validate units, geometry, document state, and layers independently;
 - return a structured result with the original `command_id`;
 - group changes so they can be undone safely;
-- reconnect and shut down cleanly.
+- start when loaded and shut down cleanly.
 
 The Python backend must not depend on the plugin's internal classes. Both sides depend only on the agreed network message contract.
 
@@ -184,11 +176,11 @@ This path is not complete yet:
 2. Odysseus calls create_autocad_line with explicit values.
 3. The MCP server builds a schema-v0.1 command.
 4. The bridge validates the command.
-5. The bridge stores a pending result under command_id.
-6. The bridge sends the command to the AutoCAD plugin over WebSocket.
-7. The plugin validates and executes the operation in AutoCAD.
-8. The plugin returns a command_result containing the same command_id.
-9. The bridge resolves the pending HTTP request.
+5. The bridge checks the plugin's health endpoint.
+6. The bridge posts the command to the AutoCAD plugin over local HTTP.
+7. The plugin queues the work for AutoCAD's UI thread, validates it, and executes it.
+8. The plugin returns a structured result containing the same command_id.
+9. The bridge verifies the command_id and returns the plugin response.
 10. MCP returns the actual AutoCAD result to Odysseus.
 ```
 
@@ -250,18 +242,14 @@ Verified manually:
 - Odysseus discovers all three MCP tools.
 - `get_bridge_health` reaches the bridge and returns healthy.
 - `get_autocad_status` reaches the bridge and accurately reports disconnected.
-- The bridge's WebSocket endpoint can accept a test connection.
-- A command can be sent from the bridge to a browser-based test WebSocket client.
+- The HTTP plugin adapter detects connected and disconnected health states in automated tests.
+- Validated commands are posted to `/command` and correlated by `command_id` in automated tests.
 
 Automated tests currently show:
 
 - MCP transport-security and bridge-error tests pass.
 - Invalid command validation passes.
-- Two older API assertions still describe the retired mock behavior and must be updated:
-  - the health test expects the old service name `AutoCAD-AI mock bridge`;
-  - the valid-command test expects a fake success even without AutoCAD, while the live bridge correctly returns `503`.
-
-These failing assertions are documentation debt in the test suite, not evidence that the verified health/status integration is broken.
+- Backend API tests cover health, plugin status, disconnected commands, successful real-result forwarding, structured plugin errors, and schema validation.
 
 ## 8. Ownership and Change Boundaries
 
@@ -269,7 +257,7 @@ These failing assertions are documentation debt in the test suite, not evidence 
 |---|---|
 | `backend/`, MCP integration, schemas, backend tests | User and Codex collaboration |
 | `Plugin/` AutoCAD code | Teammate |
-| Shared WebSocket and command-result contract | Team agreement |
+| Shared HTTP command-result contract | Team agreement |
 
 Backend changes must not modify `Plugin/` unless the user explicitly changes this boundary.
 

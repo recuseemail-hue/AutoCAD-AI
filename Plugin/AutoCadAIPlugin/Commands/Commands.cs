@@ -69,7 +69,7 @@ public sealed class CadCommands
         Editor editor = Application.DocumentManager.MdiActiveDocument.Editor;
         try
         {
-            Initialization.Bridge.Start(8080);
+            Initialization.Bridge.Start();
             editor.WriteMessage($"\nAutoCAD AI endpoint listening at {Initialization.Bridge.Endpoint}");
         }
         catch (System.Exception exception)

@@ -12,7 +12,7 @@ BRIDGE_URL = os.getenv(
     "http://127.0.0.1:8000",
 ).rstrip("/")
 
-BRIDGE_TIMEOUT_SECONDS = 30.0
+BRIDGE_TIMEOUT_SECONDS = 40.0
 
 MCP_TRANSPORT_SECURITY = TransportSecuritySettings(
     allowed_hosts=[
@@ -71,12 +71,18 @@ async def request_bridge(
 
     if response.is_error:
         detail = body.get("detail", body) if isinstance(body, dict) else body
+        message = (
+            detail.get("message", str(detail))
+            if isinstance(detail, dict)
+            else str(detail)
+        )
         return {
             "status": "error",
             "http_status": response.status_code,
             "error": {
                 "code": "BRIDGE_REQUEST_FAILED",
-                "message": str(detail),
+                "message": message,
+                "details": detail,
             },
         }
 
@@ -112,14 +118,14 @@ async def create_autocad_line(
     start_y: float,
     end_x: float,
     end_y: float,
-    layer: str = "AI-WALL",
     units: Literal[
         "inches",
         "feet",
         "millimeters",
+        "centimeters",
         "meters",
-        "drawing_units",
-    ] = "drawing_units",
+    ],
+    layer: str = "AI-WALL",
     start_z: float = 0.0,
     end_z: float = 0.0,
     create_layer_if_missing: bool = True,

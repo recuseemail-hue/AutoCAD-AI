@@ -27,21 +27,21 @@ The normal MSBuild output is also available under `bin\Release\net10.0`. Autodes
 1. Start AutoCAD 2027 and open or create a drawing.
 2. Run `NETLOAD` at the AutoCAD command line.
 3. Select `dist\AutoCadAIPlugin.dll`.
-4. Run `AI_SERVER_STATUS`. It should report `http://localhost:8080/command`.
+4. Run `AI_SERVER_STATUS`. It should report `http://localhost:8765/command`.
 
 If AutoCAD blocks the file, add the project/output directory to AutoCAD's trusted locations or use PowerShell's `Unblock-File` on the DLL before loading it.
 
 The plugin starts the local HTTP listener when it is loaded. The available AutoCAD commands are:
 
 - `AI_SERVER_STATUS` — show listener status.
-- `AI_SERVER_START` — start the listener on port 8080.
+- `AI_SERVER_START` — start the listener on port 8765.
 - `AI_SERVER_STOP` — stop the listener.
 - `AI_DRAW_JSON` — paste a compact, single-line request directly into AutoCAD without HTTP.
 
 If listener startup reports "Access is denied", reserve the local URL once from an elevated PowerShell window, then run `AI_SERVER_START` again:
 
 ```powershell
-netsh http add urlacl url=http://localhost:8080/ user="$env:USERDOMAIN\$env:USERNAME"
+netsh http add urlacl url=http://localhost:8765/ user="$env:USERDOMAIN\$env:USERNAME"
 ```
 
 ## Send the request
@@ -51,7 +51,7 @@ Keep AutoCAD open and idle, then run this from the project directory:
 ```powershell
 Invoke-RestMethod `
   -Method Post `
-  -Uri "http://localhost:8080/command" `
+  -Uri "http://localhost:8765/command" `
   -ContentType "application/json" `
   -InFile ".\examples\create-line.json"
 ```
@@ -59,7 +59,7 @@ Invoke-RestMethod `
 Health check:
 
 ```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/health"
+Invoke-RestMethod -Uri "http://localhost:8765/health"
 ```
 
 The server only binds to the local machine. It has no authentication and is intended as a proof of concept, not a network-facing production service.

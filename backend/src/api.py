@@ -3,8 +3,6 @@ from typing import Any
 from fastapi import (
     FastAPI,
     HTTPException,
-    WebSocket,
-    WebSocketDisconnect,
 )
 from jsonschema import ValidationError, validate
 
@@ -14,7 +12,8 @@ from backend.src.mock_backend import (
 )
 
 from backend.src.connection_manager import (
-    autocad_connection_manager,
+    AutoCADPluginHTTPError,
+    autocad_plugin_client,
 )
 
 app = FastAPI(
@@ -34,12 +33,13 @@ def health_check() -> dict[str, str]:
         "service": "AutoCAD-AI bridge",
     }
 
+
 @app.get("/applications")
-def list_applications() -> dict[str, dict[str, bool]]:
+async def list_applications() -> dict[str, dict[str, bool]]:
     """Report whether AutoCAD is connected."""
     return {
         "autocad": {
-            "connected": autocad_connection_manager.is_connected(),
+            "connected": await autocad_plugin_client.is_connected(),
         }
     }
 
@@ -59,14 +59,19 @@ async def submit_command(command: dict[str, Any]) -> dict[str, Any]:
             detail=f"Invalid command: {error.message}",
         ) from error
 
-    if not autocad_connection_manager.is_connected():
+    if not await autocad_plugin_client.is_connected():
         raise HTTPException(
             status_code=503,
             detail="AutoCAD is not connected.",
         )
 
     try:
-        return await autocad_connection_manager.send_command(command)
+        return await autocad_plugin_client.send_command(command)
+    except AutoCADPluginHTTPError as error:
+        raise HTTPException(
+            status_code=error.status_code,
+            detail=error.body,
+        ) from error
     except RuntimeError as error:
         raise HTTPException(
             status_code=503,
@@ -79,20 +84,6 @@ async def submit_command(command: dict[str, Any]) -> dict[str, Any]:
         ) from error
     except ValueError as error:
         raise HTTPException(
-            status_code=409,
+            status_code=502,
             detail=str(error),
         ) from error
-
-
-@app.websocket("/ws/autocad")
-async def autocad_websocket(websocket: WebSocket) -> None:
-    """Maintain a WebSocket connection with the AutoCAD plugin."""
-
-    await autocad_connection_manager.connect(websocket)
-
-    try:
-        while True:
-            response = await websocket.receive_json()
-            autocad_connection_manager.resolve_command(response)
-    except WebSocketDisconnect:
-        autocad_connection_manager.disconnect(websocket)

@@ -14,7 +14,7 @@ public sealed class Initialization : IExtensionApplication
     {
         try
         {
-            Bridge.Start(8080);
+            Bridge.Start();
             WriteMessage($"\nAutoCAD AI plugin loaded. Endpoint: {Bridge.Endpoint}");
         }
         catch (System.Exception exception)

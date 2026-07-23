@@ -10,6 +10,8 @@ namespace AutoCadAIPlugin.Services;
 
 public sealed class PythonBridge
 {
+    public const int DefaultPort = 8765;
+
     private const int MaxRequestBytes = 1024 * 1024;
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(30);
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -29,7 +31,7 @@ public sealed class PythonBridge
 
     public string Endpoint => $"http://localhost:{Port}/command";
 
-    public void Start(int port = 8080)
+    public void Start(int port = DefaultPort)
     {
         if (IsRunning)
         {

@@ -1,6 +1,6 @@
 # AutoCAD-AI Roadmap
 
-Last updated: July 21, 2026.
+Last updated: July 22, 2026.
 
 ## Status Legend
 
@@ -15,7 +15,7 @@ The project is building its first real vertical slice:
 
 > A user asks Odysseus to create one line; the request travels through MCP and the Python bridge to the AutoCAD 2027 plugin; AutoCAD creates the line; the actual result returns to Odysseus; and the operation can be undone safely.
 
-The Odysseus-to-bridge portion is working. The AutoCAD plugin is not yet connected, so the complete line-creation path has not been verified.
+The Odysseus-to-bridge portion is working, and the bridge now matches the plugin's local HTTP interface. The complete line-creation path still needs manual verification with AutoCAD 2027 and the plugin loaded.
 
 ## Progress Summary
 
@@ -25,15 +25,15 @@ The Odysseus-to-bridge portion is working. The AutoCAD plugin is not yet connect
 | Command schema v0.1 for `create_line` | Complete baseline |
 | FastAPI health and command validation | Complete baseline |
 | AutoCAD connection-status endpoint | Complete |
-| WebSocket endpoint for AutoCAD | Partial |
+| HTTP adapter for AutoCAD plugin | Complete baseline |
 | MCP server and three Odysseus tools | Complete baseline |
 | Odysseus MCP discovery | Complete: 3/3 tools |
 | Odysseus bridge-health tool call | Complete |
 | Odysseus AutoCAD-status tool call | Complete |
-| Command-result correlation | Active |
-| Backend test alignment after mock removal | Active |
-| AutoCAD 2027 plugin connection | Waiting on teammate |
-| Real AutoCAD line creation | Waiting |
+| Command-result correlation | Complete through HTTP request/response |
+| Backend test alignment after mock removal | Complete |
+| AutoCAD 2027 plugin connection | Ready for manual verification |
+| Real AutoCAD line creation | Ready for manual verification |
 | Undo of an AI operation | Waiting |
 
 ## Phase 1 - Foundation
@@ -62,7 +62,7 @@ Status: **Complete baseline**
 - [ ] Create a formal response schema.
 - [ ] Define response statuses and error codes.
 - [ ] Define plugin registration and version compatibility messages.
-- [ ] Add separate schemas for WebSocket envelopes and command results.
+- [ ] Create a formal schema for plugin command results.
 
 ## Phase 3 - Live Python Bridge
 
@@ -76,21 +76,19 @@ Implemented:
 - [x] Add validated `POST /commands`.
 - [x] Return `422` for invalid commands.
 - [x] Return `503` when AutoCAD is disconnected.
-- [x] Add `WS /ws/autocad`.
-- [x] Store the current AutoCAD WebSocket connection.
-- [x] Detect WebSocket disconnection.
-- [x] Send JSON commands to a connected test client.
+- [x] Add an HTTP adapter for the plugin's `/health` and `/command` endpoints.
+- [x] Detect plugin availability through its health response.
+- [x] Send validated JSON commands to the loaded plugin.
 - [x] Stop returning in-process mock success from the active API route.
 
-Next backend work:
+Implemented HTTP result handling:
 
-- [ ] Store a pending result by `command_id` before sending a command.
-- [ ] Resolve the pending result when the matching plugin response arrives.
-- [ ] Return the correlated result to the original HTTP caller.
-- [ ] Add a command timeout and return `504` cleanly.
-- [ ] Reject duplicate pending command IDs.
-- [ ] Fail and clean pending requests when AutoCAD disconnects.
-- [ ] Reject malformed or unknown plugin responses.
+- [x] Return the plugin's synchronous HTTP result to the original caller.
+- [x] Verify the response `command_id` matches the request.
+- [x] Add a command timeout and return `504` cleanly.
+- [x] Return `503` when the plugin cannot be reached.
+- [x] Reject malformed or non-JSON plugin responses.
+- [x] Preserve structured plugin HTTP errors.
 - [ ] Add structured bridge logging without exposing secrets.
 - [ ] Decide whether local authentication is required before broader use.
 
@@ -131,25 +129,25 @@ Current verified automated results:
 
 Required updates:
 
-- [ ] Change the health test to expect `AutoCAD-AI bridge` instead of the retired `AutoCAD-AI mock bridge` label.
-- [ ] Change the disconnected command test to expect `503` instead of a fake `200` success.
-- [ ] Add an async WebSocket test client that returns a correlated command result.
-- [ ] Test command timeout behavior.
-- [ ] Test client disconnection during a pending command.
-- [ ] Test duplicate and unexpected command results.
+- [x] Change the health test to expect `AutoCAD-AI bridge` instead of the retired mock label.
+- [x] Test disconnected commands returning `503`.
+- [x] Test HTTP command forwarding and correlated real-result return.
+- [x] Test plugin health success and connection failure.
+- [x] Test structured plugin errors and unexpected command results.
+- [x] Add an API-level command timeout test.
 - [ ] Convert the example validation script into collected pytest functions if it should remain part of the suite.
 - [ ] Resolve or deliberately pin the Starlette/httpx test-client deprecation warning.
 
 ## Phase 6 - AutoCAD 2027 Plugin Connection
 
-Status: **Waiting on teammate**
+Status: **Ready for manual verification**
 
 The `Plugin/` directory is teammate-owned and is not modified by backend work.
 
 Shared integration requirements:
 
 - [ ] Build and load the plugin in AutoCAD 2027.
-- [ ] Connect to `ws://127.0.0.1:8000/ws/autocad`.
+- [x] Host `GET /health` and `POST /command` on `http://localhost:8765`.
 - [ ] Report a stable plugin/application identity and version.
 - [ ] Receive a schema-v0.1 `create_line` command.
 - [ ] Marshal execution into a valid AutoCAD context.
@@ -158,7 +156,7 @@ Shared integration requirements:
 - [ ] Return a structured result with the original `command_id`.
 - [ ] Include the active document and affected object handle.
 - [ ] Group the operation so the user can undo it safely.
-- [ ] Reconnect after AutoCAD or the bridge restarts.
+- [x] Start the HTTP listener when the plugin loads.
 
 Completion criteria:
 
@@ -283,13 +281,11 @@ Status: **Planned**
 
 The next backend task does not require changing teammate-owned code:
 
-1. Complete command-result correlation in `backend/src/connection_manager.py`.
-2. Update `backend/tests/test_api.py` for the live bridge behavior.
-3. Add a test-only WebSocket client that returns a real correlated result over the transport.
-4. Verify disconnected, timeout, malformed-result, and successful-result paths.
-5. Document the final result envelope for the teammate.
-
-After that work passes, the browser test client can be replaced by the real AutoCAD plugin without redesigning the Python side.
+1. Load the current plugin in AutoCAD 2027 and open a disposable drawing.
+2. Verify plugin health through the bridge and Odysseus.
+3. Submit one explicit line command with supported units.
+4. Confirm that the returned handle identifies the created native line.
+5. Test timeout and malformed-response behavior at the API level.
 
 ## Explicitly Deferred
 

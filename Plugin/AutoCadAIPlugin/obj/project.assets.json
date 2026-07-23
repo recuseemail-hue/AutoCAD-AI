@@ -158,7 +158,7 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Luke\\.nuget\\packages\\": {},
+    "C:\\Users\\CodexSandboxOffline\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
@@ -167,7 +167,7 @@
       "projectUniqueName": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
       "projectName": "AutoCadAIPlugin",
       "projectPath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
-      "packagesPath": "C:\\Users\\Luke\\.nuget\\packages\\",
+      "packagesPath": "C:\\Users\\CodexSandboxOffline\\.nuget\\packages\\",
       "outputPath": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
@@ -519,5 +519,13 @@
         }
       }
     }
-  }
+  },
+  "logs": [
+    {
+      "code": "NU1900",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Error occurred while getting package vulnerability data: The SSL connection could not be established, see inner exception."
+    }
+  ]
 }

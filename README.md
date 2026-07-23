@@ -6,7 +6,7 @@ The first target workflow uses **Odysseus** as the chat interface, a local **Pyt
 
 ## Current Status
 
-Last updated: July 21, 2026.
+Last updated: July 22, 2026.
 
 The project has moved beyond the original in-process mock response. Odysseus can now discover and call the project's MCP tools, and those tools can reach the live Python bridge.
 
@@ -14,13 +14,13 @@ The project has moved beyond the original in-process mock response. Odysseus can
 |---|---|---|
 | JSON command schema v0.1 | Working baseline | Valid `create_line` requests are accepted and malformed requests are rejected |
 | FastAPI bridge | Running | `GET /health` returns `status: ok` |
-| AutoCAD connection reporting | Running | `GET /applications` reports the live connection state |
-| AutoCAD WebSocket endpoint | Partial | The bridge accepts a client at `/ws/autocad`; full command-result correlation still needs completion |
+| AutoCAD connection reporting | Implemented | `GET /applications` checks the plugin's `/health` endpoint |
+| Bridge-to-plugin HTTP adapter | Implemented | Commands are forwarded to the plugin's `/command` endpoint and the correlated HTTP response is returned |
 | Odysseus MCP server | Working | Odysseus discovers all 3 tools through Streamable HTTP |
 | Odysseus to bridge health check | Verified | `get_bridge_health` returned that the bridge is running and healthy |
 | Odysseus to AutoCAD status check | Verified | `get_autocad_status` correctly reported that AutoCAD is not connected |
-| AutoCAD 2027 plugin | Teammate-owned, in progress | Waiting for the plugin to connect to the Python bridge |
-| Live line creation in AutoCAD | Not yet verified | Blocked until the plugin is connected and command responses are correlated |
+| AutoCAD 2027 plugin | Teammate-owned, implemented proof of concept | Hosts local HTTP health and command endpoints on port `8765` |
+| Live line creation in AutoCAD | Ready for manual verification | Requires AutoCAD 2027 with the current plugin loaded |
 
 The current verified path is:
 
@@ -40,7 +40,7 @@ User
   -> Odysseus Agent mode
   -> MCP tool call
   -> FastAPI bridge
-  -> WebSocket command
+  -> local HTTP command (port 8765)
   -> AutoCAD 2027 plugin
   -> native AutoCAD operation
   -> correlated command result
@@ -55,7 +55,7 @@ The Odysseus integration currently exposes:
 - `get_autocad_status` - reports whether an AutoCAD plugin is connected.
 - `create_autocad_line` - builds a schema-v0.1 line command and submits it to the bridge.
 
-The first two tools have been verified from Odysseus. `create_autocad_line` must not be treated as complete until AutoCAD is connected and the result is returned from the real plugin.
+The first two tools have been verified from Odysseus. The bridge now forwards `create_autocad_line` to the real plugin, but the complete operation still requires manual verification with AutoCAD 2027 open and the plugin loaded.
 
 ## Local Service Addresses
 
@@ -64,7 +64,8 @@ The first two tools have been verified from Odysseus. `create_autocad_line` must
 | FastAPI bridge | `http://127.0.0.1:8000` |
 | Bridge health | `http://127.0.0.1:8000/health` |
 | Application status | `http://127.0.0.1:8000/applications` |
-| AutoCAD WebSocket | `ws://127.0.0.1:8000/ws/autocad` |
+| AutoCAD plugin command endpoint | `http://localhost:8765/command` |
+| AutoCAD plugin health endpoint | `http://localhost:8765/health` |
 | MCP server | `http://127.0.0.1:8001/mcp` |
 | MCP URL used by Dockerized Odysseus | `http://host.docker.internal:8001/mcp` |
 | Odysseus web interface | `http://localhost:7000` |
@@ -97,14 +98,12 @@ Use **Agent mode** when calling MCP tools. The current Odysseus OpenAI integrati
 
 Complete one real, reversible AutoCAD operation:
 
-1. Finish command-result correlation in the Python connection manager.
-2. Update the backend tests to describe the live bridge instead of the retired mock behavior.
-3. Load the teammate-owned plugin in AutoCAD 2027.
-4. Connect it to `ws://127.0.0.1:8000/ws/autocad`.
-5. Verify that `get_autocad_status` reports connected.
-6. Ask Odysseus to create one line with explicit coordinates, units, and layer.
-7. Return the real AutoCAD result to Odysseus.
-8. Verify that the created operation can be undone safely.
+1. Build and load the teammate-owned plugin in AutoCAD 2027.
+2. Verify `http://localhost:8765/health` directly.
+3. Verify that `get_autocad_status` reports connected.
+4. Ask Odysseus to create one line with explicit coordinates, units, and layer.
+5. Confirm that the real plugin result and object handle return to Odysseus.
+6. Verify that the created operation can be undone safely.
 
 ## Design Principles
 
