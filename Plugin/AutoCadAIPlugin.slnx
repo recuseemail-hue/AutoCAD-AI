@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="AutoCadAIPlugin/AutoCadAIPlugin.csproj" />
+  <Project Path="AutoCadAIPlugin.Tests/AutoCadAIPlugin.Tests.csproj" />
 </Solution>

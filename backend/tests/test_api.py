@@ -178,7 +178,7 @@ def test_health_check() -> None:
         "status": "ok",
         "service": "AutoCAD-AI bridge",
         "version": BRIDGE_VERSION,
-        "supported_schema_versions": ["0.1", "0.2", "0.3"],
+        "supported_schema_versions": ["0.1", "0.2", "0.3", "0.4"],
     }
 
 

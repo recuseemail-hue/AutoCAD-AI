@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.4",
+  "run_id": "run-batch-example-001",
+  "import_id": "import-batch-example-001",
+  "command_id": "cmd-batch-execute-example-001",
+  "application": "autocad",
+  "operation": "execute_batch",
+  "status": "error",
+  "message": "The active document does not match the expected document.",
+  "error": {
+    "code": "DOCUMENT_MISMATCH",
+    "message": "The active document does not match the expected document.",
+    "details": {
+      "expected_name": "Drawing1.dwg",
+      "actual_name": "Drawing2.dwg"
+    }
+  },
+  "affected_objects": [],
+  "data": {
+    "validate_only": false,
+    "validated_count": 0,
+    "created_count": 0,
+    "rolled_back": false,
+    "entity_results": []
+  },
+  "undo_token": null,
+  "warnings": [],
+  "document": {
+    "name": "Drawing2.dwg",
+    "fingerprint_guid": "22222222-2222-2222-2222-222222222222"
+  },
+  "versions": {
+    "bridge": "0.4.0",
+    "plugin": "0.4.0"
+  },
+  "timestamps": {
+    "submitted_at": "2026-07-23T12:01:00Z",
+    "bridge_received_at": "2026-07-23T12:01:00.100Z",
+    "completed_at": "2026-07-23T12:01:00.200Z"
+  }
+}

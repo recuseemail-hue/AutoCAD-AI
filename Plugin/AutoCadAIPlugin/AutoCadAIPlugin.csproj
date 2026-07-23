@@ -7,7 +7,12 @@
     <LangVersion>latest</LangVersion>
     <AssemblyName>AutoCadAIPlugin</AssemblyName>
     <RootNamespace>AutoCadAIPlugin</RootNamespace>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
+    <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>
+    <RestoreAdditionalProjectSources>
+      $(UserProfile)\.nuget\packages
+    </RestoreAdditionalProjectSources>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>

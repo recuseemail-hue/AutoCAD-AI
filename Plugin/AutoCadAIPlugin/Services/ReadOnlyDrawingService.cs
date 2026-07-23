@@ -155,7 +155,7 @@ public sealed class ReadOnlyDrawingService
                 $"Unsupported read operation '{payload.Operation}'.");
         }
 
-        if (payload.RequiresApproval)
+        if (payload.RequiresApproval == true)
         {
             throw new CadRequestException(
                 "Read-only commands must set requires_approval to false.");

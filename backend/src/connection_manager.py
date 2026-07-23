@@ -94,12 +94,24 @@ class AutoCADPluginClient:
                 "The AutoCAD plugin response command_id did not match the request."
             )
 
-        if command.get("schema_version") in ("0.2", "0.3"):
+        if command.get("schema_version") in ("0.2", "0.3", "0.4"):
             for identity_field in ("run_id", "import_id"):
                 if body.get(identity_field) != command.get(identity_field):
                     raise ValueError(
                         "The AutoCAD plugin response "
                         f"{identity_field} did not match the request."
+                    )
+
+        if command.get("schema_version") == "0.4":
+            for contract_field in (
+                "schema_version",
+                "application",
+                "operation",
+            ):
+                if body.get(contract_field) != command.get(contract_field):
+                    raise ValueError(
+                        "The AutoCAD plugin response "
+                        f"{contract_field} did not match the request."
                     )
 
         if response.is_error:

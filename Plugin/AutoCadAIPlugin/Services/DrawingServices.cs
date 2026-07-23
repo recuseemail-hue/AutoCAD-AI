@@ -163,7 +163,7 @@ public sealed class DrawingService
                 "Only the 'world' coordinate_system is supported in this proof of concept.");
         }
 
-        if (payload.RequiresApproval)
+        if (payload.RequiresApproval == true)
         {
             throw new CadRequestException(
                 "This request requires approval and was not executed. Resubmit it with requires_approval set to false after approval.");

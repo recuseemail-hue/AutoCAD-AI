@@ -1,0 +1,365 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://autocad-ai.local/schemas/v0.4/result.schema.json",
+  "title": "AutoCAD-AI Atomic Batch Result v0.4",
+  "description": "Normalized bridge result for an atomic batch command.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "import_id",
+    "command_id",
+    "application",
+    "operation",
+    "status",
+    "message",
+    "error",
+    "affected_objects",
+    "data",
+    "undo_token",
+    "warnings",
+    "document",
+    "versions",
+    "timestamps"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.4"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "import_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "application": {
+      "const": "autocad"
+    },
+    "operation": {
+      "const": "execute_batch"
+    },
+    "status": {
+      "enum": [
+        "success",
+        "error"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    },
+    "affected_objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/affected_object"
+      }
+    },
+    "data": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/batch_data"
+        }
+      ]
+    },
+    "undo_token": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "document": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/document"
+        }
+      ]
+    },
+    "versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bridge",
+        "plugin"
+      ],
+      "properties": {
+        "bridge": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plugin": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "timestamps": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "submitted_at",
+        "bridge_received_at",
+        "completed_at"
+      ],
+      "properties": {
+        "submitted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "bridge_received_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "success"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "type": "null"
+          },
+          "data": {
+            "$ref": "#/$defs/batch_data"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "error"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "error": {
+            "$ref": "#/$defs/error"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "details"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "affected_object": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_entity_id",
+        "object_type",
+        "object_id",
+        "action"
+      ],
+      "properties": {
+        "client_entity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "object_type": {
+          "enum": [
+            "LINE",
+            "LWPOLYLINE"
+          ]
+        },
+        "object_id": {
+          "type": "string",
+          "pattern": "^[0-9A-Fa-f]+$"
+        },
+        "action": {
+          "const": "created"
+        }
+      }
+    },
+    "batch_data": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validate_only",
+        "validated_count",
+        "created_count",
+        "rolled_back",
+        "entity_results"
+      ],
+      "properties": {
+        "validate_only": {
+          "type": "boolean"
+        },
+        "validated_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "created_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "rolled_back": {
+          "type": "boolean"
+        },
+        "entity_results": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/entity_result"
+          }
+        },
+        "layer_actions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/layer_action"
+          }
+        }
+      }
+    },
+    "entity_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "client_entity_id",
+        "entity_type",
+        "status",
+        "object_id",
+        "layer"
+      ],
+      "properties": {
+        "client_entity_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_type": {
+          "enum": [
+            "line",
+            "polyline"
+          ]
+        },
+        "status": {
+          "enum": [
+            "validated",
+            "created",
+            "error"
+          ]
+        },
+        "object_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9A-Fa-f]+$"
+        },
+        "layer": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "layer_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "layer",
+        "action"
+      ],
+      "properties": {
+        "layer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "enum": [
+            "existing",
+            "would_create",
+            "created"
+          ]
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fingerprint_guid": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.4",
+  "run_id": "run-batch-example-001",
+  "import_id": "import-batch-example-001",
+  "command_id": "cmd-batch-execute-example-001",
+  "submitted_at": "2026-07-23T12:01:00Z",
+  "application": "autocad",
+  "operation": "execute_batch",
+  "parameters": {
+    "validate_only": false,
+    "expected_document": {
+      "name": "Drawing1.dwg",
+      "fingerprint_guid": "11111111-1111-1111-1111-111111111111"
+    },
+    "entities": [
+      {
+        "client_entity_id": "line-001",
+        "entity_type": "line",
+        "layer": "AI-BATCH",
+        "create_layer_if_missing": true,
+        "start": {
+          "x": 0,
+          "y": 0,
+          "z": 0
+        },
+        "end": {
+          "x": 120,
+          "y": 0,
+          "z": 0
+        }
+      },
+      {
+        "client_entity_id": "polyline-001",
+        "entity_type": "polyline",
+        "layer": "AI-BATCH",
+        "create_layer_if_missing": true,
+        "vertices": [
+          {
+            "x": 0,
+            "y": 24,
+            "z": 0
+          },
+          {
+            "x": 60,
+            "y": 24,
+            "z": 0
+          },
+          {
+            "x": 60,
+            "y": 60,
+            "z": 0
+          }
+        ],
+        "closed": false
+      }
+    ]
+  },
+  "units": "inches",
+  "coordinate_system": "world",
+  "requires_approval": false
+}

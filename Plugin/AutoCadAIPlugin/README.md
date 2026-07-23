@@ -1,9 +1,9 @@
 # AutoCAD AI Plugin
 
-This .NET plugin executes validated `create_line` requests and bounded
-read-only drawing queries on AutoCAD's UI thread. It returns traceable JSON
-with document identity, object handles, drawing context, geometry properties,
-and AutoCAD-AI provenance.
+This .NET plugin executes validated `create_line` requests, atomic v0.4
+line/polyline batches, and bounded read-only drawing queries on AutoCAD's UI
+thread. It returns traceable JSON with document identity, object handles,
+drawing context, geometry properties, and AutoCAD-AI provenance.
 
 The checked-in Autodesk packages are version `26.0.0`, which is the **AutoCAD 2027 .NET API** and targets **.NET 10**. Use the matching AutoCAD release when loading this DLL. A different AutoCAD release requires matching Autodesk API package versions and target framework.
 
@@ -77,7 +77,8 @@ The returned `undo_token` is currently a correlation identifier (`cmd-001` becom
 
 ## HTTP behavior
 
-- `POST /command` accepts up to 1 MB of JSON.
+- `POST /command` accepts up to 16 MB of JSON so the 50,000-point batch limit
+  can be represented safely.
 - `GET /health` reports listener health.
 - Requests execute only after AutoCAD becomes idle, preventing database access from the HTTP background thread.
 - A request times out after 30 seconds if AutoCAD remains busy and is then skipped rather than executed late.
@@ -99,3 +100,30 @@ The returned `undo_token` is currently a correlation identifier (`cmd-001` becom
 Read queries use read-mode transactions and never return an undo token.
 Layer/entity collections are limited to at most 500 records. Window queries
 use world coordinates and geometric-extents intersection.
+
+## Atomic batch schema v0.4
+
+The `execute_batch` operation accepts 1 to 500 `line` or `polyline` entities
+and at most 50,000 total points. It independently validates:
+
+- lifecycle fields and units;
+- expected active-document name and optional fingerprint GUID;
+- unique client entity IDs and finite, non-degenerate geometry;
+- layer names and each entity's missing-layer policy;
+- two-dimensional lightweight polylines with one constant Z elevation.
+
+Set `parameters.validate_only` to `true` for the complete read-only preflight.
+No layer or entity is created and no undo token is returned. With
+`validate_only: false`, every layer and entity is created in one database
+transaction. A failure aborts that transaction and returns
+`BATCH_ROLLED_BACK` with zero affected objects.
+
+Every created entity receives `run_id`, `import_id`, `command_id`, and
+`client_entity_id` XData under the `AUTOCAD_AI` registered application. A
+repeated executed `command_id` returns `DUPLICATE_COMMAND` before any write.
+The returned `ai-batch-*` token correlates the single transaction that
+AutoCAD records as one undoable batch.
+
+The Debug build contains an internal, non-network failure hook used by the
+C# rollback tests. Conditional compilation removes that hook and its call
+site from the Release DLL.

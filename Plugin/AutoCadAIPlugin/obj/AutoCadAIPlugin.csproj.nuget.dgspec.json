@@ -5,7 +5,7 @@
   },
   "projects": {
     "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "restore": {
         "projectUniqueName": "C:\\Users\\Luke\\Desktop\\Programming\\AutoCAD-AI\\Plugin\\AutoCadAIPlugin\\AutoCadAIPlugin.csproj",
         "projectName": "AutoCadAIPlugin",
@@ -27,6 +27,7 @@
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "C:\\Program Files\\dotnet\\library-packs": {},
+          "C:\\Users\\Luke\\.nuget\\packages": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {

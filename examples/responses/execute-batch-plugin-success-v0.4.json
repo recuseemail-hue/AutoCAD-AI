@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.4",
+  "run_id": "run-batch-example-001",
+  "import_id": "import-batch-example-001",
+  "command_id": "cmd-batch-execute-example-001",
+  "application": "autocad",
+  "operation": "execute_batch",
+  "status": "success",
+  "message": "Atomic batch created successfully.",
+  "error": null,
+  "affected_objects": [
+    {
+      "client_entity_id": "line-001",
+      "object_type": "LINE",
+      "object_id": "1001",
+      "action": "created"
+    },
+    {
+      "client_entity_id": "polyline-001",
+      "object_type": "LWPOLYLINE",
+      "object_id": "1002",
+      "action": "created"
+    }
+  ],
+  "data": {
+    "validate_only": false,
+    "validated_count": 2,
+    "created_count": 2,
+    "rolled_back": false,
+    "entity_results": [
+      {
+        "client_entity_id": "line-001",
+        "entity_type": "line",
+        "status": "created",
+        "object_id": "1001",
+        "layer": "AI-BATCH"
+      },
+      {
+        "client_entity_id": "polyline-001",
+        "entity_type": "polyline",
+        "status": "created",
+        "object_id": "1002",
+        "layer": "AI-BATCH"
+      }
+    ],
+    "layer_actions": [
+      {
+        "layer": "AI-BATCH",
+        "action": "created"
+      }
+    ]
+  },
+  "undo_token": "ai-batch-cmd-batch-execute-example-001",
+  "warnings": [],
+  "document": {
+    "name": "Drawing1.dwg",
+    "fingerprint_guid": "11111111-1111-1111-1111-111111111111"
+  },
+  "plugin_version": "0.4.0",
+  "completed_at": "2026-07-23T12:01:00.300Z"
+}

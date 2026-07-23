@@ -4,7 +4,7 @@ namespace AutoCadAIPlugin.Models;
 
 public sealed class CadResponse
 {
-    public const string PluginVersion = "0.3.0";
+    public const string PluginVersion = "0.4.0";
 
     [JsonPropertyName("schema_version")]
     public string SchemaVersion { get; init; } = "0.1";
@@ -35,7 +35,6 @@ public sealed class CadResponse
     public string Message { get; init; } = string.Empty;
 
     [JsonPropertyName("error")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CadError? Error { get; init; }
 
     [JsonPropertyName("affected_objects")]
@@ -51,7 +50,6 @@ public sealed class CadResponse
     public IReadOnlyList<string> Warnings { get; init; } = [];
 
     [JsonPropertyName("document")]
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public CadDocumentInfo? Document { get; init; }
 
     [JsonPropertyName("plugin_version")]
@@ -69,7 +67,7 @@ public sealed class CadResponse
         string? documentName = null,
         params string[] warnings)
     {
-        bool isTraceable = payload.SchemaVersion is "0.2" or "0.3";
+        bool isTraceable = payload.SchemaVersion is "0.2" or "0.3" or "0.4";
         return new CadResponse
         {
             SchemaVersion = payload.SchemaVersion,
@@ -136,10 +134,18 @@ public sealed class CadDocumentInfo
 {
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
+
+    [JsonPropertyName("fingerprint_guid")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FingerprintGuid { get; init; }
 }
 
 public sealed class AffectedObject
 {
+    [JsonPropertyName("client_entity_id")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ClientEntityId { get; init; }
+
     [JsonPropertyName("object_type")]
     public string ObjectType { get; init; } = string.Empty;
 
@@ -160,4 +166,53 @@ public sealed class LineResponseData
 
     [JsonPropertyName("end_in_drawing_units")]
     public double[] EndInDrawingUnits { get; init; } = [];
+}
+
+public sealed class BatchResponseData
+{
+    [JsonPropertyName("validate_only")]
+    public bool ValidateOnly { get; init; }
+
+    [JsonPropertyName("validated_count")]
+    public int ValidatedCount { get; init; }
+
+    [JsonPropertyName("created_count")]
+    public int CreatedCount { get; init; }
+
+    [JsonPropertyName("rolled_back")]
+    public bool RolledBack { get; init; }
+
+    [JsonPropertyName("entity_results")]
+    public IReadOnlyList<BatchEntityResult> EntityResults { get; init; } = [];
+
+    [JsonPropertyName("layer_actions")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<BatchLayerAction>? LayerActions { get; init; }
+}
+
+public sealed class BatchEntityResult
+{
+    [JsonPropertyName("client_entity_id")]
+    public string ClientEntityId { get; init; } = string.Empty;
+
+    [JsonPropertyName("entity_type")]
+    public string EntityType { get; init; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = string.Empty;
+
+    [JsonPropertyName("object_id")]
+    public string? ObjectId { get; init; }
+
+    [JsonPropertyName("layer")]
+    public string Layer { get; init; } = string.Empty;
+}
+
+public sealed class BatchLayerAction
+{
+    [JsonPropertyName("layer")]
+    public string Layer { get; init; } = string.Empty;
+
+    [JsonPropertyName("action")]
+    public string Action { get; init; } = string.Empty;
 }

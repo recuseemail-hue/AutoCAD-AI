@@ -14,7 +14,7 @@ public class CadPayload
     [JsonPropertyName("parameters")] public CadParameters Parameters { get; set; } = new();
     [JsonPropertyName("units")] public string Units { get; set; } = string.Empty;
     [JsonPropertyName("coordinate_system")] public string CoordinateSystem { get; set; } = string.Empty;
-    [JsonPropertyName("requires_approval")] public bool RequiresApproval { get; set; }
+    [JsonPropertyName("requires_approval")] public bool? RequiresApproval { get; set; }
 }
 
 public class CadParameters
@@ -28,6 +28,10 @@ public class CadParameters
     [JsonPropertyName("object_id")] public string? ObjectId { get; set; }
     [JsonPropertyName("target_import_id")] public string? TargetImportId { get; set; }
     [JsonPropertyName("limit")] public int? Limit { get; set; }
+    [JsonPropertyName("validate_only")] public bool? ValidateOnly { get; set; }
+    [JsonPropertyName("expected_document")]
+    public BatchExpectedDocument? ExpectedDocument { get; set; }
+    [JsonPropertyName("entities")] public List<BatchEntity>? Entities { get; set; }
 }
 
 public class Point3D
@@ -35,4 +39,30 @@ public class Point3D
     [JsonPropertyName("x")] public double X { get; set; }
     [JsonPropertyName("y")] public double Y { get; set; }
     [JsonPropertyName("z")] public double Z { get; set; }
+}
+
+public sealed class BatchExpectedDocument
+{
+    [JsonPropertyName("name")] public string? Name { get; set; }
+    [JsonPropertyName("fingerprint_guid")] public string? FingerprintGuid { get; set; }
+}
+
+public sealed class BatchEntity
+{
+    [JsonPropertyName("client_entity_id")] public string? ClientEntityId { get; set; }
+    [JsonPropertyName("entity_type")] public string? EntityType { get; set; }
+    [JsonPropertyName("layer")] public string? Layer { get; set; }
+    [JsonPropertyName("create_layer_if_missing")]
+    public bool? CreateLayerIfMissing { get; set; }
+    [JsonPropertyName("start")] public BatchPoint3D? Start { get; set; }
+    [JsonPropertyName("end")] public BatchPoint3D? End { get; set; }
+    [JsonPropertyName("vertices")] public List<BatchPoint3D>? Vertices { get; set; }
+    [JsonPropertyName("closed")] public bool? Closed { get; set; }
+}
+
+public sealed class BatchPoint3D
+{
+    [JsonPropertyName("x")] public double? X { get; set; }
+    [JsonPropertyName("y")] public double? Y { get; set; }
+    [JsonPropertyName("z")] public double? Z { get; set; }
 }
